@@ -1,5 +1,6 @@
 /**
  * @jest-environment jsdom
+ * @jest-environment-options {"url": "http://localhost:3000/edit/test.html"}
  */
 import { readFile } from 'fs/promises';
 import path from 'path';
@@ -78,5 +79,38 @@ describe('element detection', () => {
   test('does not add galley-editable class to excluded elements', () => {
     setupDom('<p data-no-edit>Protected</p>');
     expect(document.querySelector('p').classList.contains('galley-editable')).toBe(false);
+  });
+});
+
+describe('save UI', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  test('creates save button on DOMContentLoaded', () => {
+    document.body.innerHTML = '<!-- galley:start --><p>Content</p><!-- galley:end -->';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    expect(document.getElementById('galley-save')).not.toBeNull();
+    expect(document.getElementById('galley-save').textContent).toBe('Save');
+  });
+
+  test('creates toast container on DOMContentLoaded', () => {
+    document.body.innerHTML = '<!-- galley:start --><p>Content</p><!-- galley:end -->';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    expect(document.getElementById('galley-toast')).not.toBeNull();
+  });
+
+  test('Ctrl+S prevents default browser behavior', () => {
+    setupDom('<p>Content</p>');
+    var event = new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    var prevented = !document.dispatchEvent(event);
+    expect(prevented).toBe(true);
   });
 });

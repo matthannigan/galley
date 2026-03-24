@@ -104,13 +104,16 @@ Save edited documents back to disk with backups and a clean round-trip.
 ### Deliverables
 
 #### Client-side save UI
-- Floating save button: fixed position (bottom-right corner), outside the document flow, styled distinctly from document content, hidden via `@media print`
+- Extend `src/galley-client.js` with save logic; add save button styles to `src/galley-styles.css`
+- Floating save button: fixed position (bottom-right corner), outside the document flow, styled distinctly from document content. The button element must be inside the `<!-- galley:start -->` / `<!-- galley:end -->` markers so it is stripped on save
+- All save UI styles scoped under `@media not print` (consistent with editing styles from Epic 4)
 - Keyboard shortcut: `Ctrl+S` / `Cmd+S` triggers save (prevent default browser save dialog)
 - On save: extract the full document HTML (`document.documentElement.outerHTML`), strip everything between `<!-- galley:start -->` and `<!-- galley:end -->` (inclusive), reconstruct the `<!DOCTYPE html>` declaration, POST to `/save/:filename`
 - Save confirmation: brief toast/flash message on success ("Saved"), error message on failure
 - Disable save button during in-flight request to prevent double-submit
 
 #### Server-side save endpoint
+- Add `express.json()` middleware to `src/app.js` for parsing POST bodies
 - `POST /save/:filename` accepts `{ html: "..." }` (JSON body)
 - Same path traversal protections as the edit route
 - **Backup:** Before overwriting, copy the current file to a backups subdirectory (e.g., `.galley-backups/`) with a timestamped filename (e.g., `sample.2026-03-24T16-30-00.html`)

@@ -13,4 +13,49 @@
     background-color: rgba(44, 95, 138, 0.05);
     outline-offset: 2px;
   }
+  #galley-save {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 99999;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 500;
+    color: #fff;
+    background: #2c5f8a;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: background-color 0.15s, opacity 0.15s;
+  }
+  #galley-save:hover {
+    background: #1e4a6e;
+  }
+  #galley-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  #galley-toast {
+    position: fixed;
+    bottom: 4rem;
+    right: 1.5rem;
+    z-index: 99999;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+    background: #2c5f8a;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  #galley-toast.galley-toast-visible {
+    opacity: 1;
+  }
+  #galley-toast.galley-toast-error {
+    background: #c0392b;
+  }
 }

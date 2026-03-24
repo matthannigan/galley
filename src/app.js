@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { readFile, readdir, stat, access } from 'fs/promises';
+import { readFile, readdir, stat, access, writeFile, rename, mkdir, copyFile, unlink } from 'fs/promises';
 import { injectEditing } from './injector.js';
 
 function escapeHtml(str) {
@@ -9,6 +9,7 @@ function escapeHtml(str) {
 
 export default function createApp(docsDir) {
   const app = express();
+  app.use(express.json({ limit: '5mb' }));
   const resolvedDocsDir = path.resolve(docsDir);
 
   app.get('/health', (req, res) => {
@@ -90,6 +91,58 @@ export default function createApp(docsDir) {
     const html = await readFile(filePath, 'utf-8');
     const injected = await injectEditing(html);
     res.type('html').send(injected);
+  });
+
+  app.post('/save/:filename', async (req, res) => {
+    const { filename } = req.params;
+
+    if (!filename.endsWith('.html')) {
+      return res.status(400).json({ error: 'Only .html files can be saved' });
+    }
+
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    const filePath = path.join(resolvedDocsDir, filename);
+
+    if (!filePath.startsWith(resolvedDocsDir + path.sep)) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    if (!req.body || typeof req.body.html !== 'string' || req.body.html.length === 0) {
+      return res.status(400).json({ error: 'Missing or invalid html field' });
+    }
+
+    try {
+      await access(filePath);
+    } catch {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    try {
+      // Create backup
+      const backupDir = path.join(resolvedDocsDir, '.galley-backups');
+      await mkdir(backupDir, { recursive: true });
+      const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\.\d{3}Z$/, '');
+      const baseName = filename.replace(/\.html$/, '');
+      const backupName = `${baseName}.${timestamp}.html`;
+      await copyFile(filePath, path.join(backupDir, backupName));
+
+      // Atomic write: temp file then rename
+      const tempPath = filePath + '.tmp.' + Date.now();
+      await writeFile(tempPath, req.body.html, 'utf-8');
+      try {
+        await rename(tempPath, filePath);
+      } catch (renameErr) {
+        try { await unlink(tempPath); } catch { /* best-effort cleanup */ }
+        throw renameErr;
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: 'Save failed: ' + err.message });
+    }
   });
 
   // Serve static assets (images, fonts, etc.) from the docs directory
