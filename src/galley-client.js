@@ -17,6 +17,17 @@
     return el.closest('[data-no-edit]') !== null;
   }
 
+  // Snapshot <html> and <body> attributes before extensions modify them
+  function snapshotAttributes(el) {
+    var attrs = {};
+    for (var i = 0; i < el.attributes.length; i++) {
+      attrs[el.attributes[i].name] = el.attributes[i].value;
+    }
+    return attrs;
+  }
+  var htmlAttrsOriginal = snapshotAttributes(document.documentElement);
+  var bodyAttrsOriginal = document.body ? snapshotAttributes(document.body) : null;
+
   var selector = EDITABLE_SELECTORS.join(', ');
   var elements = document.querySelectorAll(selector);
 
@@ -69,10 +80,41 @@
     return '<!DOCTYPE html>\n' + html;
   }
 
+  function restoreOriginalAttributes(el, original) {
+    // Remove any attributes not in the original snapshot
+    var toRemove = [];
+    for (var i = 0; i < el.attributes.length; i++) {
+      if (!(el.attributes[i].name in original)) {
+        toRemove.push(el.attributes[i].name);
+      }
+    }
+    toRemove.forEach(function (name) { el.removeAttribute(name); });
+    // Restore original attribute values
+    for (var name in original) {
+      if (el.getAttribute(name) !== original[name]) {
+        el.setAttribute(name, original[name]);
+      }
+    }
+  }
+
+  function removeExtensionElements() {
+    // Custom elements (hyphenated tag names) are injected by browser extensions
+    var customEls = document.querySelectorAll('*');
+    var toRemove = [];
+    customEls.forEach(function (el) {
+      if (el.tagName.indexOf('-') !== -1) {
+        toRemove.push(el);
+      }
+    });
+    toRemove.forEach(function (el) { el.remove(); });
+    return toRemove;
+  }
+
   function cleanEditableAttributes() {
     var editables = document.querySelectorAll('.galley-editable');
     editables.forEach(function (el) {
       el.removeAttribute('contenteditable');
+      el.removeAttribute('spellcheck');
       el.classList.remove('galley-editable');
       if (el.getAttribute('class') === '') {
         el.removeAttribute('class');
@@ -111,8 +153,16 @@
     saving = true;
     updateSaveButton(true);
 
+    // Clean all non-document artifacts before serializing
+    restoreOriginalAttributes(document.documentElement, htmlAttrsOriginal);
+    if (document.body && bodyAttrsOriginal) {
+      restoreOriginalAttributes(document.body, bodyAttrsOriginal);
+    }
+    var removedEls = removeExtensionElements();
     cleanEditableAttributes();
     var rawHtml = document.documentElement.outerHTML;
+    // Re-insert removed extension elements (they're harmless in the live DOM)
+    removedEls.forEach(function (el) { document.body.appendChild(el); });
     restoreEditableAttributes();
 
     var html = stripGalleyArtifacts(rawHtml);
