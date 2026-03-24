@@ -1,0 +1,14 @@
+services:
+  galley:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./docs:/docs
+    environment:
+      - GALLEY_DOCS_DIR=/docs
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

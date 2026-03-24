@@ -7,10 +7,13 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-export default function createApp(docsDir) {
+export default function createApp(docsDir, options = {}) {
   const app = express();
   app.use(express.json({ limit: '5mb' }));
   const resolvedDocsDir = path.resolve(docsDir);
+  const resolvedBackupDir = options.backupDir
+    ? path.resolve(options.backupDir)
+    : path.join(resolvedDocsDir, '.galley-backups');
 
   app.get('/health', (req, res) => {
     res.send('ok');
@@ -122,12 +125,11 @@ export default function createApp(docsDir) {
 
     try {
       // Create backup
-      const backupDir = path.join(resolvedDocsDir, '.galley-backups');
-      await mkdir(backupDir, { recursive: true });
+      await mkdir(resolvedBackupDir, { recursive: true });
       const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\.\d{3}Z$/, '');
       const baseName = filename.replace(/\.html$/, '');
       const backupName = `${baseName}.${timestamp}.html`;
-      await copyFile(filePath, path.join(backupDir, backupName));
+      await copyFile(filePath, path.join(resolvedBackupDir, backupName));
 
       // Atomic write: temp file then rename
       const tempPath = filePath + '.tmp.' + Date.now();

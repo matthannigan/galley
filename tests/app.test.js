@@ -227,4 +227,23 @@ describe('POST /save/:filename', () => {
     const backups = await readdir(path.join(tmpDir, '.galley-backups'));
     expect(backups.length).toBeGreaterThanOrEqual(1);
   });
+
+  test('saves backups to custom backupDir when configured', async () => {
+    const customBackupDir = await mkdtemp(path.join(os.tmpdir(), 'galley-backup-'));
+    const customApp = createApp(tmpDir, { backupDir: customBackupDir });
+
+    const newHtml = '<!DOCTYPE html>\n<html><body><p>Custom backup test</p></body></html>';
+    const res = await request(customApp)
+      .post('/save/test.html')
+      .send({ html: newHtml });
+    expect(res.status).toBe(200);
+
+    // Backup should be in custom dir, not in docsDir/.galley-backups
+    const backups = await readdir(customBackupDir);
+    expect(backups.length).toBe(1);
+    expect(backups[0]).toMatch(/^test\.\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.html$/);
+
+    const backupContent = await readFile(path.join(customBackupDir, backups[0]), 'utf-8');
+    expect(backupContent).toContain('Test content');
+  });
 });
