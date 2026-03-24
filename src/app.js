@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { readFile, readdir, stat, access } from 'fs/promises';
+import { injectEditing } from './injector.js';
 
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -87,7 +88,8 @@ export default function createApp(docsDir) {
     }
 
     const html = await readFile(filePath, 'utf-8');
-    res.type('html').send(html);
+    const injected = await injectEditing(html);
+    res.type('html').send(injected);
   });
 
   // Serve static assets (images, fonts, etc.) from the docs directory

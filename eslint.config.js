@@ -23,6 +23,16 @@ export default [
         afterAll: 'readonly',
         beforeEach: 'readonly',
         afterEach: 'readonly',
+        document: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['src/galley-client.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        document: 'readonly',
       },
     },
   },

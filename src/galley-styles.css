@@ -1,0 +1,16 @@
+@media not print {
+  .galley-editable {
+    outline: 1px solid transparent;
+    transition: outline-color 0.15s, background-color 0.15s;
+    border-radius: 2px;
+  }
+  .galley-editable:hover {
+    outline-color: rgba(44, 95, 138, 0.25);
+    background-color: rgba(44, 95, 138, 0.03);
+  }
+  .galley-editable:focus {
+    outline-color: rgba(44, 95, 138, 0.5);
+    background-color: rgba(44, 95, 138, 0.05);
+    outline-offset: 2px;
+  }
+}

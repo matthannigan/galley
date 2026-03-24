@@ -80,3 +80,42 @@ describe('GET /edit/:filename', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('GET /edit/:filename (injection)', () => {
+  test('injects galley markers before </body>', async () => {
+    const res = await request(app).get('/edit/test.html');
+    expect(res.text).toContain('<!-- galley:start -->');
+    expect(res.text).toContain('<!-- galley:end -->');
+    const markerEnd = res.text.indexOf('<!-- galley:end -->');
+    const bodyClose = res.text.indexOf('</body>');
+    expect(markerEnd).toBeLessThan(bodyClose);
+  });
+
+  test('injects <style> and <script> inside markers', async () => {
+    const res = await request(app).get('/edit/test.html');
+    const start = res.text.indexOf('<!-- galley:start -->');
+    const end = res.text.indexOf('<!-- galley:end -->');
+    const injected = res.text.slice(start, end);
+    expect(injected).toContain('<style>');
+    expect(injected).toContain('<script>');
+  });
+
+  test('injected script contains contenteditable logic', async () => {
+    const res = await request(app).get('/edit/test.html');
+    expect(res.text).toContain('contenteditable');
+    expect(res.text).toContain('galley-editable');
+  });
+
+  test('preserves original document content', async () => {
+    const res = await request(app).get('/edit/test.html');
+    expect(res.text).toContain('Test content');
+  });
+
+  test('appends injection when no </body> tag exists', async () => {
+    const res = await request(app).get('/edit/no-body-tag.html');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<!-- galley:start -->');
+    expect(res.text).toContain('<!-- galley:end -->');
+    expect(res.text).toContain('Content without explicit body tags');
+  });
+});
