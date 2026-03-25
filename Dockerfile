@@ -6,9 +6,9 @@ RUN npm ci --omit=dev
 FROM node:22-alpine
 RUN addgroup -S galley && adduser -S galley -G galley
 WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
-COPY package.json ./
-COPY src/ ./src/
+COPY --from=build --chown=galley:galley /app/node_modules ./node_modules
+COPY --chown=galley:galley package.json ./
+COPY --chown=galley:galley src/ ./src/
 ENV NODE_ENV=production
 ENV GALLEY_DOCS_DIR=/docs
 EXPOSE 3000

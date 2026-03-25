@@ -2,9 +2,9 @@ services:
   galley:
     build: .
     ports:
-      - "3000:3000"
+      - "${HOST_PORT:-3000}:3000"
     volumes:
-      - ./mount:/docs
+      - ${HOST_MOUNT_PATH:-./mount}:/docs
     environment:
       - GALLEY_DOCS_DIR=/docs
     healthcheck:
@@ -12,3 +12,4 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
