@@ -24,7 +24,7 @@ export default function createApp(docsDir, options = {}) {
     const htmlFiles = [];
 
     for (const entry of entries) {
-      if (!entry.endsWith('.html')) continue;
+      if (!entry.endsWith('.html') || entry.startsWith('.')) continue;
       const fileStat = await stat(path.join(resolvedDocsDir, entry));
       if (!fileStat.isFile()) continue;
       htmlFiles.push({ name: entry, modified: fileStat.mtime });
