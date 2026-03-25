@@ -14,8 +14,10 @@ async function getPayload() {
   ]);
   payload = [
     '<!-- galley:start -->',
+    '<div id="galley-ui">',
     `<style>\n${styles}</style>`,
     `<script>\n${script}</script>`,
+    '</div>',
     '<!-- galley:end -->',
   ].join('\n');
   return payload;
@@ -23,9 +25,12 @@ async function getPayload() {
 
 export async function injectEditing(html) {
   const block = await getPayload();
-  const bodyCloseIndex = html.lastIndexOf('</body>');
-  if (bodyCloseIndex !== -1) {
-    return html.slice(0, bodyCloseIndex) + block + '\n' + html.slice(bodyCloseIndex);
+  // Insert after opening <body> tag (which may have attributes)
+  const bodyOpenMatch = html.match(/<body(\s[^>]*)?>/i);
+  if (bodyOpenMatch) {
+    const insertAt = bodyOpenMatch.index + bodyOpenMatch[0].length;
+    return html.slice(0, insertAt) + '\n' + block + html.slice(insertAt);
   }
-  return html + '\n' + block;
+  // No <body> tag — prepend to the content
+  return block + '\n' + html;
 }

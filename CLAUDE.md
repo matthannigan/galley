@@ -35,7 +35,7 @@ npm run lint
 docker build -t galley .
 
 # Run via Docker (mount documents directory)
-docker run -p 3000:3000 -v /path/to/docs:/docs galley
+docker run -p 3000:3000 -v /path/to/html/files:/docs galley
 
 # Run via Docker Compose
 docker compose up

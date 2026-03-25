@@ -88,7 +88,7 @@ describe('save UI', () => {
   });
 
   test('creates save button on DOMContentLoaded', () => {
-    document.body.innerHTML = '<!-- galley:start --><p>Content</p><!-- galley:end -->';
+    document.body.innerHTML = '<p>Content</p><div id="galley-ui"></div>';
     eval(clientScript);
     document.dispatchEvent(new Event('DOMContentLoaded'));
     expect(document.getElementById('galley-save')).not.toBeNull();
@@ -96,10 +96,19 @@ describe('save UI', () => {
   });
 
   test('creates toast container on DOMContentLoaded', () => {
-    document.body.innerHTML = '<!-- galley:start --><p>Content</p><!-- galley:end -->';
+    document.body.innerHTML = '<p>Content</p><div id="galley-ui"></div>';
     eval(clientScript);
     document.dispatchEvent(new Event('DOMContentLoaded'));
     expect(document.getElementById('galley-toast')).not.toBeNull();
+  });
+
+  test('appends save UI inside galley-ui container', () => {
+    document.body.innerHTML = '<p>Content</p><div id="galley-ui"></div>';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    var container = document.getElementById('galley-ui');
+    expect(container.querySelector('#galley-save')).not.toBeNull();
+    expect(container.querySelector('#galley-toast')).not.toBeNull();
   });
 
   test('Ctrl+S prevents default browser behavior', () => {

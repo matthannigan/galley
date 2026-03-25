@@ -66,8 +66,10 @@
   var filename = decodeURIComponent(pathParts[pathParts.length - 1]);
 
   function stripGalleyArtifacts(html) {
-    var startMarker = '<!-- galley:start -->';
-    var endMarker = '<!-- galley:end -->';
+    // Concatenation avoids these literals appearing in the script source,
+    // which would cause indexOf to match the script itself instead of the markers
+    var startMarker = '<!-- galley:' + 'start -->';
+    var endMarker = '<!-- galley:' + 'end -->';
     var startIdx = html.indexOf(startMarker);
     var endIdx = html.indexOf(endMarker);
     if (startIdx !== -1 && endIdx !== -1) {
@@ -199,15 +201,7 @@
 
   // Create save UI after full DOM is parsed
   document.addEventListener('DOMContentLoaded', function () {
-    // Find the galley:end comment node
-    var endComment = null;
-    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
-    while (walker.nextNode()) {
-      if (walker.currentNode.nodeValue.trim() === 'galley:end') {
-        endComment = walker.currentNode;
-        break;
-      }
-    }
+    var container = document.getElementById('galley-ui');
 
     saveBtn = document.createElement('button');
     saveBtn.setAttribute('type', 'button');
@@ -220,9 +214,9 @@
     toastEl.setAttribute('role', 'status');
     toastEl.setAttribute('aria-live', 'polite');
 
-    if (endComment && endComment.parentNode) {
-      endComment.parentNode.insertBefore(toastEl, endComment);
-      endComment.parentNode.insertBefore(saveBtn, endComment);
+    if (container) {
+      container.appendChild(saveBtn);
+      container.appendChild(toastEl);
     } else {
       document.body.appendChild(saveBtn);
       document.body.appendChild(toastEl);

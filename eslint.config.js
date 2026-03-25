@@ -37,7 +37,6 @@ export default [
         document: 'readonly',
         window: 'readonly',
         XMLHttpRequest: 'readonly',
-        NodeFilter: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         decodeURIComponent: 'readonly',
@@ -47,6 +46,6 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/', 'docs/'],
+    ignores: ['node_modules/', 'docs/', 'mount/'],
   },
 ];

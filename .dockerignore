@@ -2,6 +2,7 @@ node_modules/
 .git/
 .claude/
 docs/
+mount/
 tests/
 .galley-backups/
 *.md

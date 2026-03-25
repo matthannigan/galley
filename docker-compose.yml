@@ -4,7 +4,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./docs:/docs
+      - ./mount:/docs
     environment:
       - GALLEY_DOCS_DIR=/docs
     healthcheck:

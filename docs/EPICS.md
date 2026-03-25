@@ -11,7 +11,7 @@ Set up the Node.js project, dev tooling, and a sample document for manual testin
 ### Deliverables
 - `package.json` with Express dependency, `dev` / `start` / `test` / `lint` scripts
 - Express server skeleton listening on a configurable port (default 3000)
-- Documents directory (`docs/`) with a sample HTML file containing embedded CSS, print styles, headings, paragraphs, lists, a table, and a `data-no-edit` element — exercises every editing scenario
+- Sample HTML document (`docs/sample.html`) containing embedded CSS, print styles, headings, paragraphs, lists, a table, and a `data-no-edit` element — exercises every editing scenario. User documents are served from a configurable directory (default `mount/`, gitignored)
 - `.gitignore`, `Dockerfile` (minimal — just enough to not block Epic 6), `.dockerignore`
 - Test harness (Jest + supertest) with a single smoke test proving the server starts and responds
 - ESLint config (flat config, no framework plugins)
@@ -138,7 +138,7 @@ Package Galley for production use as a Docker container.
 ### Deliverables
 - Multi-stage `Dockerfile`: build stage installs deps, production stage copies only what's needed, runs as non-root user
 - `docker-compose.yml` example mounting a local directory and exposing port 3000
-- Documents directory configurable via `GALLEY_DOCS_DIR` environment variable (default: `/docs` in container, `./docs` locally)
+- Documents directory configurable via `GALLEY_DOCS_DIR` environment variable (default: `/docs` in container, `./mount` locally)
 - Backups directory configurable via `GALLEY_BACKUP_DIR` environment variable (default: `.galley-backups/` inside the docs directory)
 - `NODE_ENV=production` in container
 - Health check endpoint (`GET /health`) returning 200

@@ -13,7 +13,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Place `.html` files in the `docs/` directory. Open the browser to see the file picker, click a document to edit, and press Save or Ctrl+S to write changes back to disk.
+Place `.html` files in the `mount/` directory (create it if needed). Open the browser to see the file picker, click a document to edit, and press Save or Ctrl+S to write changes back to disk. A sample document is available at `docs/sample.html`.
 
 ## Docker
 
@@ -33,7 +33,7 @@ docker compose up
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3000` | Server listen port |
-| `GALLEY_DOCS_DIR` | `./docs` (local) / `/docs` (container) | Directory containing HTML documents |
+| `GALLEY_DOCS_DIR` | `./mount` (local) / `/docs` (container) | Directory containing HTML documents |
 | `GALLEY_BACKUP_DIR` | `.galley-backups/` inside docs dir | Directory for timestamped backups |
 
 ## How It Works

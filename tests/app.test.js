@@ -82,13 +82,13 @@ describe('GET /edit/:filename', () => {
 });
 
 describe('GET /edit/:filename (injection)', () => {
-  test('injects galley markers before </body>', async () => {
+  test('injects galley markers after opening <body> tag', async () => {
     const res = await request(app).get('/edit/test.html');
     expect(res.text).toContain('<!-- galley:start -->');
     expect(res.text).toContain('<!-- galley:end -->');
-    const markerEnd = res.text.indexOf('<!-- galley:end -->');
-    const bodyClose = res.text.indexOf('</body>');
-    expect(markerEnd).toBeLessThan(bodyClose);
+    const bodyOpen = res.text.indexOf('<body>');
+    const markerStart = res.text.indexOf('<!-- galley:start -->');
+    expect(markerStart).toBeGreaterThan(bodyOpen);
   });
 
   test('injects <style> and <script> inside markers', async () => {
@@ -111,7 +111,7 @@ describe('GET /edit/:filename (injection)', () => {
     expect(res.text).toContain('Test content');
   });
 
-  test('appends injection when no </body> tag exists', async () => {
+  test('prepends injection when no <body> tag exists', async () => {
     const res = await request(app).get('/edit/no-body-tag.html');
     expect(res.status).toBe(200);
     expect(res.text).toContain('<!-- galley:start -->');
