@@ -20,6 +20,7 @@ beforeAll(async () => {
 function setupDom(bodyHtml) {
   document.body.innerHTML = bodyHtml;
   eval(clientScript);
+  document.dispatchEvent(new Event('DOMContentLoaded'));
 }
 
 describe('element detection', () => {

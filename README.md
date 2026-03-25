@@ -54,6 +54,51 @@ The saved file contains no editing artifacts — it's the same clean HTML you st
 - Embedded CSS, print styles, and relative assets are preserved exactly
 - Editing indicators are hidden in print — documents print as designed
 
+## Troubleshooting: Text You Can't Edit
+
+Galley only makes specific HTML elements editable: `p`, `h1`–`h6`, `li`, `td`, `th`, `blockquote`, `figcaption`, `dt`, `dd`, `label`, `span`, and `a`. If you have text sitting directly inside a `<div>` or other container element, it won't be editable.
+
+**The fix:** Wrap the text in an element Galley recognizes. The two most common patterns:
+
+Use `<span>` for short inline text (labels, values, single lines):
+```html
+<!-- Before: not editable -->
+<div class="card-title">Project Name</div>
+
+<!-- After: editable -->
+<div class="card-title"><span>Project Name</span></div>
+```
+
+Use `<p>` for paragraph-length text:
+```html
+<!-- Before: not editable -->
+<div class="callout">
+    This is a longer description that should be editable.
+</div>
+
+<!-- After: editable -->
+<div class="callout">
+    <p>This is a longer description that should be editable.</p>
+</div>
+```
+
+For mixed content (a label div followed by loose text), wrap just the text:
+```html
+<!-- Before: label is not editable, description is not editable -->
+<div class="note">
+    <div class="note-title">Important</div>
+    This text cannot be edited because it's a bare text node inside a div.
+</div>
+
+<!-- After: both parts are editable -->
+<div class="note">
+    <p class="note-title">Important</p>
+    <span>This text can now be edited.</span>
+</div>
+```
+
+**Tip:** When converting `<div>` to `<span>` or `<p>`, check that your CSS still applies. If the original CSS targets `div.card-title`, update it to `.card-title` (class-only selector) so it works regardless of element type.
+
 ## License
 
-TBD
+MIT — see [LICENSE](LICENSE).

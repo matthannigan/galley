@@ -26,16 +26,21 @@
     return attrs;
   }
   var htmlAttrsOriginal = snapshotAttributes(document.documentElement);
-  var bodyAttrsOriginal = document.body ? snapshotAttributes(document.body) : null;
+  var bodyAttrsOriginal = null;
 
   var selector = EDITABLE_SELECTORS.join(', ');
-  var elements = document.querySelectorAll(selector);
 
-  elements.forEach(function (el) {
-    if (isExcluded(el)) return;
-    el.setAttribute('contenteditable', 'true');
-    el.classList.add('galley-editable');
-  });
+  function activateEditing() {
+    if (!bodyAttrsOriginal && document.body) {
+      bodyAttrsOriginal = snapshotAttributes(document.body);
+    }
+    var elements = document.querySelectorAll(selector);
+    elements.forEach(function (el) {
+      if (isExcluded(el)) return;
+      el.setAttribute('contenteditable', 'true');
+      el.classList.add('galley-editable');
+    });
+  }
 
   // Paste interception: plain text only
   document.addEventListener('paste', function (e) {
@@ -124,14 +129,7 @@
     });
   }
 
-  function restoreEditableAttributes() {
-    var els = document.querySelectorAll(selector);
-    els.forEach(function (el) {
-      if (isExcluded(el)) return;
-      el.setAttribute('contenteditable', 'true');
-      el.classList.add('galley-editable');
-    });
-  }
+  var restoreEditableAttributes = activateEditing;
 
   function updateSaveButton(disabled) {
     if (!saveBtn) return;
@@ -199,8 +197,10 @@
     }
   });
 
-  // Create save UI after full DOM is parsed
+  // Activate editing and create save UI after full DOM is parsed
   document.addEventListener('DOMContentLoaded', function () {
+    activateEditing();
+
     var container = document.getElementById('galley-ui');
 
     saveBtn = document.createElement('button');
