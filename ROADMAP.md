@@ -48,7 +48,95 @@ Ctrl+V pastes plain text. Ctrl+Shift+V pastes with formatting (bold/italic/links
 ### 4b. Block Reordering ✓
 Drag-and-drop via vendored SortableJS. Per-block drag handle (`<button contenteditable="false">`) required for SortableJS handle support. Constrained to siblings within the same parent. Drag handle visually integrated with floating control bar as a unified strip (move, duplicate, remove).
 
-## Phase 5: Future Considerations
+## Phase 5: Onboarding and Discoverability
+
+Phases 1–4 built a capable editing environment. Phase 5 shifts focus from functionality to usability — making the system approachable for first-time users and discoverable for returning ones, without compromising Galley's minimal aesthetic.
+
+### 5a. Landing Page Refresh
+
+Redesign the index page to serve two audiences simultaneously: returning users who want to find and open a file quickly, and new users who need to understand what they're looking at.
+
+**File browser improvements:**
+- Last-modified timestamps alongside filenames
+- Cleaner visual treatment (card-style or table with subtle styling) while staying minimal
+- File size display
+
+**System introduction section:**
+- Brief, non-technical explanation of what Galley is and how the editing workflow works
+- Visually distinct from the file list but not competing for attention — a returning user should be able to ignore it naturally
+- Pointer to the guided tour available on any edit page
+
+Standalone — no dependencies on 5b or 5c.
+
+### 5b. Editor Help Panel
+
+A floating `?` button in a fixed corner of the editing view (mirroring the save button's placement pattern). On hover or click, it reveals a compact panel containing:
+
+**Quick reference content:**
+- Keyboard shortcuts grid (Ctrl+S save, Ctrl+B/I/K formatting, Ctrl+V/Ctrl+Shift+V paste, Escape undo)
+- Brief explanation of what's editable and what isn't
+- Block controls overview (hover to reveal move/duplicate/remove)
+- Save behavior (auto-backup, conflict detection)
+
+**Design constraints:**
+- Hidden in print output (consistent with all Galley UI)
+- Panel dismisses on click-outside or Escape
+- Does not interfere with editing interactions (no overlay that blocks contenteditable)
+- "Take a tour" link at the bottom (launches 5c when available; hidden until 5c is built)
+
+Standalone — establishes the `?` button as the home for help features. The tour link becomes active once 5c is implemented.
+
+### 5c. Guided Tour
+
+A lightweight, custom-built walkthrough for first-time users. Highlights key interface elements one at a time with a tooltip and navigation controls (next, back, dismiss). No external library — vanilla JS, consistent with Galley's zero-dependency client approach.
+
+**Tour stops (approximately 5–6):**
+1. An editable element — click to edit, blue outline on hover
+2. The save button — save with click or Ctrl+S, orange dot means unsaved changes
+3. Text formatting — select text to reveal the toolbar (trigger a demo selection)
+4. Block controls — hover over a `data-galley-block` to reveal move/duplicate/remove
+5. Paste behavior — Ctrl+V for plain, Ctrl+Shift+V for formatted
+6. The help button — find shortcuts and reference info anytime
+
+**First-visit detection:**
+- `localStorage` flag set on tour completion or dismissal
+- Tour is also manually launchable from the help panel (5b) at any time
+
+**Design constraints:**
+- Spotlight/highlight effect on the active element with a tooltip alongside
+- Dims or overlays the rest of the page without preventing scroll
+- Keyboard navigable (arrow keys or Enter to advance, Escape to dismiss)
+- Hidden in print output
+- No saved state on the server — tour progress is entirely client-side
+
+Depends on 5b (tour launch point lives in the help panel).
+
+---
+
+## Dependency Graph
+
+```
+Phase 1c: Dirty Tracking ✓
+    ├── Phase 2a: Undo ✓
+    │       └── Phase 4a: Block Duplicate/Remove ✓
+    │               └── Phase 4b: Block Reordering ✓
+    ├── Phase 2b: Save Conflict Detection ✓
+    │       └── Phase 2c: Auto-Reload Polling ✓
+    └── Phase 2c: Auto-Reload Polling ✓
+
+Phase 1a: Download ✓
+Phase 1b: Upload ✓
+Phase 3a: Formatting ✓
+Phase 3b: Paste ✓
+
+Phase 5a: Landing Page Refresh
+Phase 5b: Editor Help Panel
+    └── Phase 5c: Guided Tour
+```
+
+---
+
+## Future Considerations
 
 These are not currently planned but are worth keeping in mind architecturally. They would represent a significant increase in scope and complexity.
 
@@ -69,22 +157,3 @@ Username/password or shared passphrase for access control. Currently handled at 
 ### Change Attribution and History
 
 Track which user made which edits, with a visual timeline or diff viewer. Requires authentication (to identify users) and either a richer backup format or a separate change log. Significant complexity increase over the current timestamped-backup approach.
-
----
-
-## Dependency Graph
-
-```
-Phase 1c: Dirty Tracking ✓
-    ├── Phase 2a: Undo ✓
-    │       └── Phase 4a: Block Duplicate/Remove ✓
-    │               └── Phase 4b: Block Reordering ✓
-    ├── Phase 2b: Save Conflict Detection ✓
-    │       └── Phase 2c: Auto-Reload Polling ✓
-    └── Phase 2c: Auto-Reload Polling ✓
-
-Phase 1a: Download ✓
-Phase 1b: Upload ✓
-Phase 3a: Formatting ✓
-Phase 3b: Paste ✓
-```
