@@ -13,7 +13,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Place `.html` files in the `mount/` directory (create it if needed). Open the browser to see the file picker, click a document to edit, and press Save or Ctrl+S to write changes back to disk. A sample document is available at `docs/sample.html`.
+Place `.html` files in the `mount/` directory (create it if needed). Open the browser to see the file picker, click a document to edit, and press Save or Ctrl+S to write changes back to disk. Select text to reveal a floating toolbar for bold, italic, and link formatting. A sample document is available at `docs/sample.html`.
 
 ## Docker
 

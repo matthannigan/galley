@@ -40,6 +40,7 @@ export default [
         XMLHttpRequest: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        prompt: 'readonly',
         decodeURIComponent: 'readonly',
         encodeURIComponent: 'readonly',
         JSON: 'readonly',

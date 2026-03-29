@@ -42,6 +42,50 @@ The `dirty` flag is designed to be read by other subsystems:
 - **Auto-reload polling** — when a polled status endpoint reports a newer file version, the client can silently reload if `!dirty`, or show a notification if `dirty`.
 - **Undo** — the undo system can call `setDirty(true)` when restoring a snapshot to keep the state consistent.
 
+## Formatting Toolbar
+
+A floating toolbar appears when the user selects text inside a contenteditable element. It supports bold, italic, and link formatting via `document.execCommand`.
+
+### DOM Structure
+
+The toolbar is a `<div id="galley-toolbar">` containing three `<button>` elements with `data-command` attributes (`bold`, `italic`, `createLink`). It is created during `DOMContentLoaded` and appended inside `#galley-ui`, so it is automatically stripped on save (lives between the galley markers).
+
+### Positioning
+
+`updateToolbar()` runs on `selectionchange`, `mouseup`, `scroll`, and `resize`. It:
+
+1. Checks if the selection is non-collapsed and inside a contenteditable element
+2. Uses `Range.getBoundingClientRect()` to position the toolbar centered above the selection
+3. Flips below the selection (with `galley-toolbar-below` class) when there isn't enough room above
+4. Clamps horizontal position to stay within the viewport
+5. Updates active states on buttons using `document.queryCommandState()` for bold/italic and parent-walk for links
+
+### Button Handlers
+
+A single `mousedown` listener on the toolbar uses event delegation. `e.preventDefault()` is critical — it prevents the browser from collapsing the selection when the button is clicked. The `createLink` command uses `window.prompt()` for URL input; if the selection is already inside an `<a>`, it calls `document.execCommand('unlink')` instead.
+
+### Keyboard Shortcuts
+
+A `keydown` listener intercepts Ctrl/Cmd + B, I, K when the event target is inside a contenteditable element. The shortcuts work independently of toolbar visibility. `execCommand` fires `input` events, so dirty tracking activates automatically.
+
+## Paste Handling
+
+Paste is intercepted on all contenteditable elements. The behavior depends on the Shift key:
+
+- **Without Shift (Ctrl+V):** plain text only — `clipboardData.getData('text/plain')` inserted via `execCommand('insertText')`.
+- **With Shift (Ctrl+Shift+V):** formatted paste — `clipboardData.getData('text/html')` is sanitized through `sanitizePasteHtml()`, then inserted via `execCommand('insertHTML')`. Falls back to plain text if no HTML is on the clipboard.
+
+### Sanitization
+
+`sanitizePasteHtml(html)` creates a temporary `<div>`, sets its `innerHTML`, then recursively walks the DOM tree with `sanitizeNode()`:
+
+- `<strong>` and `<b>` are normalized to `<strong>`
+- `<em>` and `<i>` are normalized to `<em>`
+- `<a>` is preserved only if `href` matches `http:`, `https:`, or `mailto:` schemes (all attributes except `href` are stripped)
+- Everything else is unwrapped to its text content
+
+This prevents pasting of styles, classes, font tags, and potentially dangerous markup while keeping the three formatting types the toolbar supports.
+
 ## Download Button (Hidden)
 
 The editing view creates a download `<a>` element (`#galley-download`) in the DOM on every page load, but it is hidden via `display: none` in `src/galley-styles.css`. The `/download/:filename` route and file picker download links remain fully functional.

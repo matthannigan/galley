@@ -237,3 +237,258 @@ describe('extension artifact cleanup', () => {
     expect(hyphenated.length).toBeGreaterThan(0);
   });
 });
+
+describe('formatting toolbar', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  test('creates toolbar element inside galley-ui on DOMContentLoaded', () => {
+    setupDom('<p>Hello</p><div id="galley-ui"></div>');
+    var toolbar = document.getElementById('galley-toolbar');
+    expect(toolbar).not.toBeNull();
+    expect(toolbar.parentElement.id).toBe('galley-ui');
+  });
+
+  test('toolbar has three buttons with correct data-command attributes', () => {
+    setupDom('<p>Hello</p><div id="galley-ui"></div>');
+    var toolbar = document.getElementById('galley-toolbar');
+    var buttons = toolbar.querySelectorAll('button');
+    expect(buttons.length).toBe(3);
+    expect(buttons[0].getAttribute('data-command')).toBe('bold');
+    expect(buttons[1].getAttribute('data-command')).toBe('italic');
+    expect(buttons[2].getAttribute('data-command')).toBe('createLink');
+  });
+
+  test('toolbar starts hidden (no galley-toolbar-visible class)', () => {
+    setupDom('<p>Hello</p><div id="galley-ui"></div>');
+    var toolbar = document.getElementById('galley-toolbar');
+    expect(toolbar.classList.contains('galley-toolbar-visible')).toBe(false);
+  });
+});
+
+describe('formatting keyboard shortcuts', () => {
+  let execCalls;
+  let origExecCommand;
+
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    execCalls = [];
+    origExecCommand = document.execCommand;
+    document.execCommand = function (cmd, showUI, value) {
+      execCalls.push({ cmd, showUI, value });
+      return true;
+    };
+  });
+
+  afterEach(() => {
+    document.execCommand = origExecCommand;
+  });
+
+  test('Ctrl+B on editable element calls execCommand bold', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    p.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'b', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+    expect(execCalls.some(c => c.cmd === 'bold')).toBe(true);
+  });
+
+  test('Ctrl+I on editable element calls execCommand italic', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    p.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'i', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+    expect(execCalls.some(c => c.cmd === 'italic')).toBe(true);
+  });
+
+  test('Cmd+B (metaKey) also works', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    p.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'b', metaKey: true, bubbles: true, cancelable: true,
+    }));
+    expect(execCalls.some(c => c.cmd === 'bold')).toBe(true);
+  });
+
+  test('Ctrl+B outside editable does not trigger', () => {
+    document.body.innerHTML = '<div>Not editable</div><div id="galley-ui"></div>';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    var div = document.querySelector('div');
+    div.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'b', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+    expect(execCalls.some(c => c.cmd === 'bold')).toBe(false);
+  });
+
+  test('Ctrl+K on editable calls prompt and createLink', () => {
+    setupDom('<p>Hello</p>');
+    var origPrompt = window.prompt;
+    window.prompt = function () { return 'https://example.com'; };
+    var p = document.querySelector('p');
+    p.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'k', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+    window.prompt = origPrompt;
+    expect(execCalls.some(c => c.cmd === 'createLink' && c.value === 'https://example.com')).toBe(true);
+  });
+
+  test('Ctrl+K with cancelled prompt does not call createLink', () => {
+    setupDom('<p>Hello</p>');
+    var origPrompt = window.prompt;
+    window.prompt = function () { return null; };
+    var p = document.querySelector('p');
+    p.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'k', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+    window.prompt = origPrompt;
+    expect(execCalls.some(c => c.cmd === 'createLink')).toBe(false);
+  });
+});
+
+describe('paste handling', () => {
+  let execCalls;
+  let origExecCommand;
+
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    execCalls = [];
+    origExecCommand = document.execCommand;
+    document.execCommand = function (cmd, showUI, value) {
+      execCalls.push({ cmd, showUI, value });
+      return true;
+    };
+  });
+
+  afterEach(() => {
+    document.execCommand = origExecCommand;
+  });
+
+  function createPasteEvent(data, opts = {}) {
+    var event = new Event('paste', { bubbles: true, cancelable: true });
+    event.shiftKey = opts.shiftKey || false;
+    event.clipboardData = {
+      getData: function (type) { return data[type] || ''; },
+    };
+    return event;
+  }
+
+  test('Ctrl+V pastes plain text', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    var event = createPasteEvent({
+      'text/plain': 'plain text',
+      'text/html': '<b>rich</b>',
+    });
+    p.dispatchEvent(event);
+    expect(execCalls.some(c => c.cmd === 'insertText' && c.value === 'plain text')).toBe(true);
+    expect(execCalls.some(c => c.cmd === 'insertHTML')).toBe(false);
+  });
+
+  test('Ctrl+Shift+V pastes sanitized HTML', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    var event = createPasteEvent({
+      'text/plain': 'plain',
+      'text/html': '<strong>bold</strong> <span style="color:red">colored</span>',
+    }, { shiftKey: true });
+    p.dispatchEvent(event);
+    var htmlCall = execCalls.find(c => c.cmd === 'insertHTML');
+    expect(htmlCall).toBeTruthy();
+    expect(htmlCall.value).toContain('<strong>');
+    expect(htmlCall.value).not.toContain('<span');
+    expect(htmlCall.value).not.toContain('style');
+  });
+
+  test('Ctrl+Shift+V falls back to plain text when no HTML on clipboard', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    var event = createPasteEvent({
+      'text/plain': 'just text',
+    }, { shiftKey: true });
+    p.dispatchEvent(event);
+    expect(execCalls.some(c => c.cmd === 'insertText' && c.value === 'just text')).toBe(true);
+  });
+
+  test('paste outside editable is not intercepted', () => {
+    document.body.innerHTML = '<div>Not editable</div><div id="galley-ui"></div>';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    var div = document.querySelector('div');
+    var event = createPasteEvent({ 'text/plain': 'text' });
+    div.dispatchEvent(event);
+    expect(execCalls.length).toBe(0);
+  });
+});
+
+describe('paste sanitization', () => {
+  let origExecCommand;
+  let lastInsertedHtml;
+
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    lastInsertedHtml = null;
+    origExecCommand = document.execCommand;
+    document.execCommand = function (cmd, showUI, value) {
+      if (cmd === 'insertHTML') lastInsertedHtml = value;
+      return true;
+    };
+  });
+
+  afterEach(() => {
+    document.execCommand = origExecCommand;
+  });
+
+  function pasteHtml(html) {
+    var event = new Event('paste', { bubbles: true, cancelable: true });
+    event.shiftKey = true;
+    event.clipboardData = {
+      getData: function (type) {
+        if (type === 'text/html') return html;
+        return '';
+      },
+    };
+    document.querySelector('p').dispatchEvent(event);
+    return lastInsertedHtml;
+  }
+
+  test('preserves nested bold inside italic', () => {
+    setupDom('<p>Hello</p>');
+    var result = pasteHtml('<em><strong>text</strong></em>');
+    expect(result).toContain('<em>');
+    expect(result).toContain('<strong>');
+  });
+
+  test('strips inline styles from allowed tags', () => {
+    setupDom('<p>Hello</p>');
+    var result = pasteHtml('<strong style="color:red">text</strong>');
+    expect(result).toBe('<strong>text</strong>');
+  });
+
+  test('strips javascript: href (unwraps to text)', () => {
+    setupDom('<p>Hello</p>');
+    var result = pasteHtml('<a href="javascript:alert(1)">click</a>');
+    expect(result).not.toContain('<a');
+    expect(result).toContain('click');
+  });
+
+  test('preserves mailto: links', () => {
+    setupDom('<p>Hello</p>');
+    var result = pasteHtml('<a href="mailto:x@y.com">email</a>');
+    expect(result).toContain('<a href="mailto:x@y.com">');
+  });
+
+  test('unwraps arbitrary divs/spans/font tags to text', () => {
+    setupDom('<p>Hello</p>');
+    var result = pasteHtml('<div><font color="red"><span class="x">text</span></font></div>');
+    expect(result).toBe('text');
+  });
+
+  test('preserves https links', () => {
+    setupDom('<p>Hello</p>');
+    var result = pasteHtml('<a href="https://example.com">link</a>');
+    expect(result).toContain('<a href="https://example.com">');
+  });
+});

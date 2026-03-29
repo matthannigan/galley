@@ -370,6 +370,40 @@ describe('POST /upload', () => {
   });
 });
 
+describe('formatting tag round-trip', () => {
+  let tmpDir;
+  let tmpApp;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-fmt-'));
+    await copyFile(
+      path.join(fixturesDir, 'formatted-content.html'),
+      path.join(tmpDir, 'formatted-content.html')
+    );
+    tmpApp = createApp(tmpDir);
+  });
+
+  test('formatting tags survive save round-trip', async () => {
+    const htmlWithFormatting = '<!DOCTYPE html>\n<html><head><title>Formatted Test</title></head>\n' +
+      '<body><p>This has <strong>bold</strong>, <em>italic</em>, and <a href="https://example.com">a link</a>.</p></body></html>';
+    const res = await request(tmpApp)
+      .post('/save/formatted-content.html')
+      .send({ html: htmlWithFormatting });
+    expect(res.status).toBe(200);
+
+    const saved = await readFile(path.join(tmpDir, 'formatted-content.html'), 'utf-8');
+    expect(saved).toContain('<strong>bold</strong>');
+    expect(saved).toContain('<em>italic</em>');
+    expect(saved).toContain('<a href="https://example.com">a link</a>');
+  });
+
+  test('injected content includes toolbar styles', async () => {
+    const res = await request(tmpApp).get('/edit/formatted-content.html');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('galley-toolbar');
+  });
+});
+
 describe('file picker includes upload control', () => {
   test('page contains upload input', async () => {
     const res = await request(app).get('/');

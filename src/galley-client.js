@@ -17,6 +17,45 @@
     return el.closest('[data-no-edit]') !== null;
   }
 
+  // --- Paste sanitization (for Ctrl+Shift+V formatted paste) ---
+
+  function escapeAttr(s) {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function sanitizeNode(node) {
+    var result = '';
+    for (var i = 0; i < node.childNodes.length; i++) {
+      var child = node.childNodes[i];
+      if (child.nodeType === 3) {
+        result += child.textContent;
+      } else if (child.nodeType === 1) {
+        var tag = child.tagName.toLowerCase();
+        if (tag === 'strong' || tag === 'b') {
+          result += '<strong>' + sanitizeNode(child) + '</strong>';
+        } else if (tag === 'em' || tag === 'i') {
+          result += '<em>' + sanitizeNode(child) + '</em>';
+        } else if (tag === 'a' && child.getAttribute('href')) {
+          var href = child.getAttribute('href');
+          if (/^(https?:|mailto:)/i.test(href)) {
+            result += '<a href="' + escapeAttr(href) + '">' + sanitizeNode(child) + '</a>';
+          } else {
+            result += sanitizeNode(child);
+          }
+        } else {
+          result += sanitizeNode(child);
+        }
+      }
+    }
+    return result;
+  }
+
+  function sanitizePasteHtml(html) {
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return sanitizeNode(tmp);
+  }
+
   // Snapshot <html> and <body> attributes before extensions modify them
   function snapshotAttributes(el) {
     var attrs = {};
@@ -42,13 +81,24 @@
     });
   }
 
-  // Paste interception: plain text only
+  // Paste interception: plain text by default, Shift for formatted paste
   document.addEventListener('paste', function (e) {
     var target = e.target.closest('[contenteditable="true"]');
     if (!target) return;
     e.preventDefault();
+
     var text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
+    if (e.shiftKey) {
+      var htmlContent = e.clipboardData.getData('text/html');
+      if (htmlContent) {
+        var sanitized = sanitizePasteHtml(htmlContent);
+        document.execCommand('insertHTML', false, sanitized);
+      } else {
+        document.execCommand('insertText', false, text);
+      }
+    } else {
+      document.execCommand('insertText', false, text);
+    }
   });
 
   // Structure guard: suppress Enter in block elements (allow in li)
@@ -228,6 +278,38 @@
     }
   });
 
+  // Formatting shortcuts: Ctrl/Cmd+B (bold), Ctrl/Cmd+I (italic), Ctrl/Cmd+K (link)
+  function handleLinkCommand() {
+    var sel = window.getSelection();
+    if (sel && sel.anchorNode) {
+      var anchor = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+      if (anchor && anchor.closest('a')) {
+        document.execCommand('unlink');
+        return;
+      }
+    }
+    var url = prompt('URL:', 'https://');
+    if (url) {
+      document.execCommand('createLink', false, url);
+    }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    var key = e.key.toLowerCase();
+    if (key !== 'b' && key !== 'i' && key !== 'k') return;
+    var target = e.target.closest('[contenteditable="true"]');
+    if (!target) return;
+    e.preventDefault();
+    if (key === 'b') {
+      document.execCommand('bold');
+    } else if (key === 'i') {
+      document.execCommand('italic');
+    } else if (key === 'k') {
+      handleLinkCommand();
+    }
+  });
+
   // Activate editing and create save UI after full DOM is parsed
   document.addEventListener('DOMContentLoaded', function () {
     activateEditing();
@@ -251,14 +333,119 @@
     downloadBtn.setAttribute('href', '/download/' + encodeURIComponent(filename));
     downloadBtn.textContent = 'Download';
 
+    // --- Formatting toolbar ---
+    var toolbar = document.createElement('div');
+    toolbar.setAttribute('id', 'galley-toolbar');
+
+    var boldBtn = document.createElement('button');
+    boldBtn.setAttribute('type', 'button');
+    boldBtn.setAttribute('data-command', 'bold');
+    boldBtn.innerHTML = '<strong>B</strong>';
+
+    var italicBtn = document.createElement('button');
+    italicBtn.setAttribute('type', 'button');
+    italicBtn.setAttribute('data-command', 'italic');
+    italicBtn.innerHTML = '<em>I</em>';
+
+    var linkBtn = document.createElement('button');
+    linkBtn.setAttribute('type', 'button');
+    linkBtn.setAttribute('data-command', 'createLink');
+    linkBtn.style.textDecoration = 'underline';
+    linkBtn.textContent = 'A';
+
+    toolbar.appendChild(boldBtn);
+    toolbar.appendChild(italicBtn);
+    toolbar.appendChild(linkBtn);
+
+    // Toolbar button handlers — mousedown to preserve selection
+    toolbar.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var command = btn.getAttribute('data-command');
+      if (command === 'bold' || command === 'italic') {
+        document.execCommand(command);
+      } else if (command === 'createLink') {
+        handleLinkCommand();
+      }
+      updateToolbar();
+    });
+
     if (container) {
       container.appendChild(saveBtn);
       container.appendChild(downloadBtn);
       container.appendChild(toastEl);
+      container.appendChild(toolbar);
     } else {
       document.body.appendChild(saveBtn);
       document.body.appendChild(downloadBtn);
       document.body.appendChild(toastEl);
+      document.body.appendChild(toolbar);
     }
+
+    // --- Toolbar positioning and visibility ---
+    function isInsideEditable(node) {
+      if (!node) return false;
+      var el = node.nodeType === 3 ? node.parentElement : node;
+      return el && el.closest('[contenteditable="true"]') !== null;
+    }
+
+    function updateToolbar() {
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount || !isInsideEditable(sel.anchorNode)) {
+        toolbar.classList.remove('galley-toolbar-visible', 'galley-toolbar-below');
+        return;
+      }
+
+      var range = sel.getRangeAt(0);
+      var rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) {
+        toolbar.classList.remove('galley-toolbar-visible', 'galley-toolbar-below');
+        return;
+      }
+
+      // Show toolbar to measure its dimensions
+      toolbar.classList.add('galley-toolbar-visible');
+      toolbar.classList.remove('galley-toolbar-below');
+      var tw = toolbar.offsetWidth;
+      var th = toolbar.offsetHeight;
+      var gap = 8;
+
+      var top;
+      if (rect.top - th - gap < 0) {
+        // Not enough room above — show below
+        top = rect.bottom + gap + window.scrollY;
+        toolbar.classList.add('galley-toolbar-below');
+      } else {
+        top = rect.top - th - gap + window.scrollY;
+      }
+
+      var left = rect.left + rect.width / 2 - tw / 2 + window.scrollX;
+      left = Math.max(4, Math.min(left, document.documentElement.clientWidth - tw - 4));
+
+      toolbar.style.top = top + 'px';
+      toolbar.style.left = left + 'px';
+
+      // Update active states
+      boldBtn.classList.toggle('galley-toolbar-active', document.queryCommandState('bold'));
+      italicBtn.classList.toggle('galley-toolbar-active', document.queryCommandState('italic'));
+      var inLink = false;
+      if (sel.anchorNode) {
+        var anchorEl = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+        inLink = anchorEl && anchorEl.closest('a') !== null;
+      }
+      linkBtn.classList.toggle('galley-toolbar-active', inLink);
+    }
+
+    document.addEventListener('selectionchange', updateToolbar);
+    document.addEventListener('mouseup', function () {
+      setTimeout(updateToolbar, 0);
+    });
+    window.addEventListener('scroll', function () {
+      if (toolbar.classList.contains('galley-toolbar-visible')) updateToolbar();
+    });
+    window.addEventListener('resize', function () {
+      if (toolbar.classList.contains('galley-toolbar-visible')) updateToolbar();
+    });
   });
 })();

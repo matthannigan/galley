@@ -2,6 +2,17 @@
 
 Reverse-chronological list of technical findings and gotchas from implementation.
 
+## 2026-03-29 — Phase 3 (Formatting Toolbar, Paste Refinement)
+
+### `mousedown` with `preventDefault` is required for toolbar buttons
+Clicking a button outside a contenteditable element collapses the selection, losing the text the user selected. Using `mousedown` (not `click`) with `e.preventDefault()` prevents the browser from moving focus and collapsing the selection. This is the standard pattern for floating formatting toolbars.
+
+### `var` redeclaration across if/else branches triggers `no-redeclare`
+ESLint's `no-redeclare` rule fires when `var text` is declared in both branches of an if/else block, even though `var` is function-scoped and this is technically valid JS. Fix by hoisting the declaration above the conditional.
+
+### `document.execCommand` triggers `input` events automatically
+When using `execCommand('bold')`, `execCommand('italic')`, or `execCommand('insertHTML')`, the browser fires an `input` event on the contenteditable element. This means the existing dirty tracking listener (`document.addEventListener('input', ...)`) picks up formatting changes without any manual `setDirty(true)` calls.
+
 ## 2026-03-29 — Phase 1 (Download, Upload, Dirty Tracking)
 
 ### `position: fixed` already contains `::after` pseudo-elements

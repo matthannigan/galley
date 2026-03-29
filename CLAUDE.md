@@ -58,8 +58,8 @@ docker compose up
 
 ### Key Constraints
 - **Save outputs must be clean:** No injected scripts, editing UI, or tool artifacts in saved files. Output must be structurally identical to input, differing only in text content. Browser extension artifacts (Grammarly, etc.) are stripped before save.
-- **Editing is text-only:** No structural changes. No rich text formatting toolbar in v1.
-- **Paste is plain text only:** All paste events intercepted and stripped to plain text.
+- **Editing is text-only:** No structural changes. Minimal formatting toolbar supports bold, italic, and link.
+- **Paste defaults to plain text:** Ctrl+V strips formatting. Ctrl+Shift+V pastes with formatting (bold/italic/links only, everything else stripped).
 - **Backups:** Before overwriting, create a timestamped backup in `.galley-backups/` (configurable via `GALLEY_BACKUP_DIR`).
 - **No auth in v1:** Access control handled at the network layer (Cloudflare tunnel).
 - **Default port:** 3000

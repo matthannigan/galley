@@ -39,9 +39,25 @@ The Save button in the bottom-right corner activates when you make changes. Save
 
 If you try to close the tab or navigate away with unsaved changes, the browser will prompt you to confirm.
 
+### Formatting
+
+Select text to reveal a small floating toolbar with three options:
+
+- **Bold** — click **B** or press `Ctrl+B` / `Cmd+B`
+- **Italic** — click *I* or press `Ctrl+I` / `Cmd+I`
+- **Link** — click A or press `Ctrl+K` / `Cmd+K`, then enter a URL. To remove a link, select linked text and press `Ctrl+K` / `Cmd+K` again.
+
+The toolbar appears above the selection (or below if near the top of the page) and disappears when the selection is cleared. Keyboard shortcuts work whether or not the toolbar is visible. Active formatting is highlighted on the toolbar buttons.
+
+Formatting is stored as standard HTML (`<strong>`, `<em>`, `<a>`) and persists through save/reload cycles. The toolbar is hidden in print output.
+
+### Paste Behavior
+
+- **`Ctrl+V` / `Cmd+V`** — pastes plain text (all formatting stripped). This is the default.
+- **`Ctrl+Shift+V` / `Cmd+Shift+V`** — pastes with formatting, but only bold, italic, and links are preserved. All other formatting (colors, font sizes, styles, etc.) is stripped. Links with `javascript:` URLs are rejected for security.
+
 ### Editing Constraints
 
-- **Plain text paste only** — pasting strips all formatting and inserts plain text
 - **No structural changes** — pressing Enter in block elements (paragraphs, headings, etc.) is suppressed to prevent accidental structure changes. List items allow Enter for multi-line content.
 
 ## Uploading
