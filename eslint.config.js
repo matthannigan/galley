@@ -47,10 +47,12 @@ export default [
         decodeURIComponent: 'readonly',
         encodeURIComponent: 'readonly',
         JSON: 'readonly',
+        Map: 'readonly',
+        Sortable: 'readonly',
       },
     },
   },
   {
-    ignores: ['node_modules/', 'docs/', 'mount/'],
+    ignores: ['node_modules/', 'docs/', 'mount/', 'src/vendor/'],
   },
 ];

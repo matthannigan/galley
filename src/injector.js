@@ -8,14 +8,16 @@ let payload = null;
 
 async function getPayload() {
   if (payload) return payload;
-  const [script, styles] = await Promise.all([
+  const [script, styles, sortableScript] = await Promise.all([
     readFile(path.join(__dirname, 'galley-client.js'), 'utf-8'),
     readFile(path.join(__dirname, 'galley-styles.css'), 'utf-8'),
+    readFile(path.join(__dirname, 'vendor', 'sortable.min.js'), 'utf-8'),
   ]);
   payload = [
     '<!-- galley:start -->',
     '<div id="galley-ui">',
     `<style>\n${styles}</style>`,
+    `<script>\n${sortableScript}</script>`,
     `<script>\n${script}</script>`,
     '</div>',
     '<!-- galley:end -->',

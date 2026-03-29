@@ -146,6 +146,46 @@ Polling pauses when the tab is hidden (`document.visibilitychange` event). When 
 
 Both save conflict (409) and auto-reload use the same `showBanner(message, buttons)` / `hideBanner()` functions and `#galley-banner` element. Only one banner is shown at a time — save conflict banners take priority since they include the Force Save option.
 
+## Block Operations
+
+Block operations add structural editing (duplicate, remove, reorder) to elements marked with `data-galley-block`.
+
+### Architecture
+
+**Floating control bar:** A single `#galley-block-controls` element lives inside `#galley-ui` and repositions on hover — the same pattern as the formatting toolbar. This means it is automatically stripped on save (inside galley markers) and never interferes with document CSS. Contains duplicate and remove buttons.
+
+**Drag handles:** SortableJS requires the drag handle to be a descendant of the draggable element. A `<button class="galley-block-drag-handle" contenteditable="false">` is prepended into each `data-galley-block` element at load time and cleaned before save. The handle is styled to visually align with the floating control bar, forming a unified vertical strip (move on top, duplicate and remove below). The `contenteditable="false"` is critical — without it, handles inside contenteditable blocks inherit `isContentEditable: true`, which causes SortableJS to refuse the drag.
+
+**Nested blocks:** When blocks are nested, the controls target the innermost block. The drag handle is shown only on the active block via the `.galley-block-hover` class (not CSS `:hover`, which would trigger on all ancestors simultaneously).
+
+### SortableJS Integration
+
+SortableJS is vendored at `src/vendor/sortable.min.js` and injected by `src/injector.js` as a separate `<script>` tag before `galley-client.js`. To update, run `npm run vendor:sortable` after upgrading the `sortablejs` devDependency.
+
+`initBlockSorting()` finds all unique parent containers of `[data-galley-block]` elements and creates a `Sortable` instance on each with `handle: '.galley-block-drag-handle'` and `draggable: '[data-galley-block]'`. This constrains drag-and-drop to siblings within the same container.
+
+### Save Cleanup
+
+`cleanBlockAttributes()` runs during the save flow alongside `cleanEditableAttributes()`:
+
+1. Removes all `.galley-block-drag-handle` elements from the DOM
+2. Removes inline `position: relative` added by `injectDragHandles()` (tracked via `data-galley-pos-added`)
+3. Removes transient `.galley-block-hover` classes
+
+`restoreBlockAttributes()` calls `injectDragHandles()` to re-inject handles after serialization.
+
+### Remove with Undo
+
+`removeBlock()` stashes the removed element and its position (parent + nextSibling) in a closure. `showToast()` accepts an optional `actions` parameter (array of `{label, action}`) to render interactive buttons. The undo toast has a 6-second timeout. Clicking Undo calls `parent.insertBefore(block, nextSibling)` to restore the element to its original position.
+
+### Duplicate
+
+`duplicateBlock()` uses `cloneNode(true)` and inserts as next sibling. It then calls `activateEditing()` (idempotent re-scan), `injectDragHandles()`, and `initBlockSorting()` to wire up the clone.
+
+### Title Cleanup
+
+`setDirty(true)` prepends `• ` to `document.title` as a visual indicator. Since `outerHTML` serialization includes the `<title>` element, the save flow restores `originalTitle` before serialization and re-applies the dirty prefix afterward. On load, `originalTitle` strips any existing `• ` prefixes (regex `^(\u2022 )+`) to self-heal files that were saved with the bug present in earlier versions.
+
 ## Download Button (Hidden)
 
 The editing view creates a download `<a>` element (`#galley-download`) in the DOM on every page load, but it is hidden via `display: none` in `src/galley-styles.css`. The `/download/:filename` route and file picker download links remain fully functional.

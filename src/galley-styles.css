@@ -190,6 +190,117 @@
   #galley-banner button.galley-banner-force:hover {
     background: #f0f4f8;
   }
+  /* --- Block controls (duplicate / drag / remove) --- */
+  [data-galley-block].galley-block-hover {
+    outline: 1px dashed rgba(44, 95, 138, 0.3);
+    outline-offset: 2px;
+  }
+  #galley-block-controls {
+    display: none;
+    position: absolute;
+    z-index: 100000;
+    flex-direction: column;
+    padding: 3px;
+    background: #1a1a1a;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    gap: 1px;
+  }
+  #galley-block-controls.galley-block-controls-visible {
+    display: flex;
+  }
+  #galley-block-controls button {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #999;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #galley-block-controls button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+  #galley-block-controls button svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+  }
+  /* Toast with action buttons (e.g., undo) */
+  #galley-toast.galley-toast-interactive {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  #galley-toast button {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    font-weight: 600;
+    color: #2c5f8a;
+    background: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  #galley-toast button:hover {
+    background: #e8e8e8;
+  }
+  /* --- Block drag handles --- */
+  .galley-block-drag-handle {
+    position: absolute;
+    left: -36px;
+    width: 32px;
+    height: 32px;
+    padding: 3px;
+    cursor: grab;
+    box-sizing: border-box;
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: #999;
+    background: #1a1a1a;
+    border: none;
+    border-radius: 6px 6px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 100000;
+  }
+  .galley-block-drag-handle svg {
+    width: 14px;
+    height: 14px;
+  }
+  .galley-block-drag-handle::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 4px;
+    background: transparent;
+    transition: background-color 0.15s;
+  }
+  .galley-block-drag-handle:hover {
+    color: #fff;
+  }
+  .galley-block-drag-handle:hover::before {
+    background: rgba(255, 255, 255, 0.15);
+  }
+  [data-galley-block].galley-block-hover > .galley-block-drag-handle {
+    opacity: 1;
+  }
+  .galley-block-ghost {
+    opacity: 0.4;
+  }
+  .galley-block-chosen {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  }
 }
 @media print {
   #galley-ui {

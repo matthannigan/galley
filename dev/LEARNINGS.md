@@ -2,6 +2,32 @@
 
 Reverse-chronological list of technical findings and gotchas from implementation.
 
+## 2026-03-29 — Phase 4 (Block Operations)
+
+### SortableJS requires handles inside the draggable element
+SortableJS's `handle` option only works when the handle element is a descendant of the `draggable` element. A floating control bar outside the block cannot serve as a drag handle — synthetic `MouseEvent` dispatching doesn't work because SortableJS relies on the real browser event target chain. Solution: inject a per-block `<button class="galley-block-drag-handle">` as a child of each block, styled to visually align with the floating control bar.
+
+### `contenteditable` inheritance blocks SortableJS drag
+When a drag handle is inside a `contenteditable="true"` element (e.g., `<p data-galley-block contenteditable="true">`), the handle inherits `isContentEditable: true`. SortableJS checks `!s.isContentEditable` in `_onTapStart` and refuses to initiate drag. Fix: set `contenteditable="false"` explicitly on the drag handle element to break inheritance.
+
+### `mouseout` fires on child-to-parent transitions within an element
+Using delegated `mouseout` to hide hover controls causes premature hiding because `mouseout` bubbles and fires when the mouse moves between child elements inside the same parent. Fix: check `e.relatedTarget` — if the mouse is moving to another element inside the same block or into the controls bar, suppress the hide.
+
+### Floating bar + per-block handle requires matched sizing
+The floating control bar (`#galley-block-controls`) has `padding: 3px` which makes its total width 32px (26px buttons + 6px padding). The per-block drag handle must match this 32px width to appear as a unified strip. The hover highlight on the handle uses a `::before` pseudo-element with `inset: 3px` and `border-radius: 4px` to replicate the inset rounded square that the container padding creates for the floating bar buttons.
+
+### Nested `data-galley-block` elements cause duplicate drag handles
+When blocks are nested, CSS `:hover` triggers on all ancestors simultaneously, showing drag handles for every level. Fix: only show the drag handle via the `.galley-block-hover` class (applied exclusively to the innermost active block by JS), not via CSS `:hover`.
+
+### `document.title` must be cleaned before save serialization
+`setDirty(true)` prepends `• ` to `document.title` as a visual indicator. Since `document.documentElement.outerHTML` serializes the `<title>` element, the bullet gets saved to the file. On reload, `setDirty` adds another bullet, causing accumulation (`• • • Title`). Fix: restore `originalTitle` before serializing, re-apply the dirty prefix after. Also strip existing bullet prefixes on load for self-healing.
+
+### Vendored JS files need ESLint ignoring
+SortableJS minified source triggers hundreds of ESLint errors (no-undef, no-redeclare, etc.). Add `src/vendor/` to ESLint's `ignores` array. The `Sortable` global used in `galley-client.js` needs explicit addition to the client's ESLint globals list.
+
+### Injector payload cache persists across nodemon restarts
+The injector caches the assembled payload (styles + scripts) in a module-level variable. When nodemon restarts the server process after a file change, the new process gets a fresh cache. However, if only CSS or client JS changes, the server must be restarted to pick up the change — nodemon watches `src/` so this happens automatically in dev mode.
+
 ## 2026-03-29 — Phase 2 (Save Conflict Detection, Undo, Auto-Reload)
 
 ### Injecting per-request data into a cached payload

@@ -86,6 +86,40 @@ Polling pauses when the tab is in the background and resumes when you return.
 
 - **No structural changes** — pressing Enter in block elements (paragraphs, headings, etc.) is suppressed to prevent accidental structure changes. List items allow Enter for multi-line content.
 
+## Block Operations
+
+When the Document Author marks container elements with the `data-galley-block` attribute, Galley enables structural editing controls for those blocks.
+
+### Controls
+
+Hover over a block to reveal a small control bar to the left with three actions:
+
+- **Move** (top, chevron arrows) — drag to reorder the block among its siblings. Blocks can only be reordered within the same parent container.
+- **Duplicate** (middle, copy icon) — creates a copy of the block immediately below the original. The copy is fully editable.
+- **Remove** (bottom, trash icon) — removes the block from the document. A toast notification with an **Undo** button appears for 6 seconds, allowing you to restore the block to its original position.
+
+For nested blocks (a block inside another block), the controls target the innermost block.
+
+All block operations mark the document as having unsaved changes. Block controls and drag handles are hidden in print output and are not saved to the file.
+
+### For Document Authors
+
+To enable block operations on a container element, add the `data-galley-block` attribute:
+
+```html
+<div data-galley-block>
+  <h2>Section Title</h2>
+  <p>Section content goes here.</p>
+</div>
+
+<div data-galley-block>
+  <h2>Another Section</h2>
+  <p>More content.</p>
+</div>
+```
+
+Blocks are typically `<div>` or `<section>` elements that wrap a logical content unit. Drag-and-drop reordering is constrained to siblings within the same parent — blocks cannot be dragged to a different section of the document.
+
 ## Uploading
 
 The file picker page has an upload control that accepts `.html` files. When you upload:

@@ -155,7 +155,7 @@
 
   var saving = false;
   var dirty = false;
-  var originalTitle = document.title;
+  var originalTitle = document.title.replace(/^(\u2022 )+/, '');
   var saveBtn = null;
   var toastEl = null;
   var bannerEl = null;
@@ -250,6 +250,47 @@
     });
   }
 
+  function cleanBlockAttributes() {
+    // Remove drag handles injected into blocks
+    var handles = document.querySelectorAll('.galley-block-drag-handle');
+    handles.forEach(function (el) { el.remove(); });
+    // Remove inline position:relative added for handle positioning
+    var blocks = document.querySelectorAll('[data-galley-block]');
+    blocks.forEach(function (el) {
+      if (el.getAttribute('data-galley-pos-added') === 'true') {
+        el.style.position = '';
+        if (el.getAttribute('style') === '') el.removeAttribute('style');
+        el.removeAttribute('data-galley-pos-added');
+      }
+      el.classList.remove('galley-block-hover');
+      if (el.getAttribute('class') === '') el.removeAttribute('class');
+    });
+  }
+
+  function restoreBlockAttributes() {
+    injectDragHandles();
+  }
+
+  function injectDragHandles() {
+    var blocks = document.querySelectorAll('[data-galley-block]');
+    blocks.forEach(function (block) {
+      if (block.querySelector('.galley-block-drag-handle')) return;
+      var handle = document.createElement('button');
+      handle.setAttribute('type', 'button');
+      handle.className = 'galley-block-drag-handle';
+      handle.setAttribute('contenteditable', 'false');
+      handle.setAttribute('aria-hidden', 'true');
+      handle.setAttribute('title', 'Drag to reorder');
+      handle.innerHTML = '<svg viewBox="0 0 16 16"><path d="M2.5 6.5l5.5-5 5.5 5M2.5 9.5l5.5 5 5.5-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      var computed = window.getComputedStyle(block);
+      if (computed.position === 'static' || computed.position === '') {
+        block.style.position = 'relative';
+        block.setAttribute('data-galley-pos-added', 'true');
+      }
+      block.insertBefore(handle, block.firstChild);
+    });
+  }
+
   var restoreEditableAttributes = activateEditing;
 
   function updateSaveButton(disabled) {
@@ -258,15 +299,35 @@
     saveBtn.textContent = disabled ? 'Saving\u2026' : 'Save';
   }
 
-  function showToast(message, isError) {
+  function showToast(message, isError, actions) {
     if (!toastEl) return;
-    toastEl.textContent = message;
-    toastEl.className = 'galley-toast-visible' + (isError ? ' galley-toast-error' : '');
+    toastEl.innerHTML = '';
+    var msg = document.createElement('span');
+    msg.textContent = message;
+    toastEl.appendChild(msg);
+    var classes = 'galley-toast-visible';
+    if (isError) classes += ' galley-toast-error';
+    if (actions && actions.length) {
+      classes += ' galley-toast-interactive';
+      actions.forEach(function (a) {
+        var btn = document.createElement('button');
+        btn.setAttribute('type', 'button');
+        btn.textContent = a.label;
+        btn.addEventListener('click', function () {
+          a.action();
+          clearTimeout(toastEl._timer);
+          toastEl.className = '';
+          toastEl.innerHTML = '';
+        });
+        toastEl.appendChild(btn);
+      });
+    }
+    toastEl.className = classes;
     clearTimeout(toastEl._timer);
     toastEl._timer = setTimeout(function () {
       toastEl.className = '';
-      toastEl.textContent = '';
-    }, 2000);
+      toastEl.innerHTML = '';
+    }, actions ? 6000 : 2000);
   }
 
   function showBanner(message, buttons) {
@@ -302,12 +363,18 @@
     if (document.body && bodyAttrsOriginal) {
       restoreOriginalAttributes(document.body, bodyAttrsOriginal);
     }
+    // Restore original title (remove dirty bullet prefix)
+    document.title = originalTitle;
     var removedEls = removeExtensionElements();
     cleanEditableAttributes();
+    cleanBlockAttributes();
     var rawHtml = document.documentElement.outerHTML;
     // Re-insert removed extension elements (they're harmless in the live DOM)
     removedEls.forEach(function (el) { document.body.appendChild(el); });
     restoreEditableAttributes();
+    restoreBlockAttributes();
+    // Re-apply dirty title (will be cleared by setDirty(false) on success)
+    document.title = '\u2022 ' + originalTitle;
 
     var html = stripGalleyArtifacts(rawHtml);
 
@@ -490,17 +557,182 @@
       updateToolbar();
     });
 
+    // --- Block controls (duplicate / drag / remove) ---
+    var blockControls = document.createElement('div');
+    blockControls.setAttribute('id', 'galley-block-controls');
+
+    var dupBtn = document.createElement('button');
+    dupBtn.setAttribute('type', 'button');
+    dupBtn.setAttribute('data-block-action', 'duplicate');
+    dupBtn.setAttribute('title', 'Duplicate block');
+    dupBtn.innerHTML = '<svg viewBox="0 0 16 16"><rect x="5" y="1" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="5" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+
+    var removeBtn = document.createElement('button');
+    removeBtn.setAttribute('type', 'button');
+    removeBtn.setAttribute('data-block-action', 'remove');
+    removeBtn.setAttribute('title', 'Remove block');
+    removeBtn.innerHTML = '<svg viewBox="0 0 16 16"><path d="M2 4h12M5.5 4V2.5h5V4M6 7v5M10 7v5M3.5 4l.75 10h7.5L12.5 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    blockControls.appendChild(dupBtn);
+    blockControls.appendChild(removeBtn);
+
+    // Block controls hover logic
+    var activeBlock = null;
+    var blockHideTimer = null;
+
+    function showBlockControls(block) {
+      if (activeBlock && activeBlock !== block) {
+        activeBlock.classList.remove('galley-block-hover');
+      }
+      activeBlock = block;
+      block.classList.add('galley-block-hover');
+      // Position below the per-block drag handle to form a unified strip
+      var handle = block.querySelector('.galley-block-drag-handle');
+      if (handle) {
+        var handleRect = handle.getBoundingClientRect();
+        var top = handleRect.bottom + window.scrollY;
+        var left = handleRect.left + window.scrollX;
+        blockControls.style.top = top + 'px';
+        blockControls.style.left = left + 'px';
+      } else {
+        var rect = block.getBoundingClientRect();
+        blockControls.style.top = (rect.top + window.scrollY) + 'px';
+        blockControls.style.left = (rect.left - 36 + window.scrollX) + 'px';
+      }
+      blockControls.classList.add('galley-block-controls-visible');
+    }
+
+    function hideBlockControls() {
+      blockControls.classList.remove('galley-block-controls-visible');
+      if (activeBlock) {
+        activeBlock.classList.remove('galley-block-hover');
+        activeBlock = null;
+      }
+    }
+
+    function scheduleHideBlockControls() {
+      clearTimeout(blockHideTimer);
+      blockHideTimer = setTimeout(function () {
+        hideBlockControls();
+      }, 150);
+    }
+
+    function cancelHideBlockControls() {
+      clearTimeout(blockHideTimer);
+    }
+
+    document.addEventListener('mouseover', function (e) {
+      var block = e.target.closest('[data-galley-block]');
+      if (!block) return;
+      // Don't show controls if hovering over the controls themselves
+      if (e.target.closest('#galley-block-controls')) return;
+      cancelHideBlockControls();
+      showBlockControls(block);
+    });
+
+    document.addEventListener('mouseout', function (e) {
+      var source = e.target.closest('[data-galley-block]') || e.target.closest('#galley-block-controls');
+      if (!source) return;
+      // If mouse is moving to another element inside the block or into the controls, don't hide
+      var dest = e.relatedTarget;
+      if (dest) {
+        if (dest.closest && (dest.closest('[data-galley-block]') === activeBlock || dest.closest('#galley-block-controls'))) return;
+      }
+      scheduleHideBlockControls();
+    });
+
+    blockControls.addEventListener('mouseenter', function () {
+      cancelHideBlockControls();
+    });
+
+    blockControls.addEventListener('mouseleave', function () {
+      scheduleHideBlockControls();
+    });
+
+    // Block action handlers
+    function duplicateBlock(block) {
+      var clone = block.cloneNode(true);
+      block.parentNode.insertBefore(clone, block.nextSibling);
+      activateEditing();
+      injectDragHandles();
+      initBlockSorting();
+      setDirty(true);
+      showToast('Block duplicated');
+    }
+
+    function removeBlock(block) {
+      var parent = block.parentNode;
+      var nextSibling = block.nextSibling;
+      parent.removeChild(block);
+      activeBlock = null;
+      hideBlockControls();
+      setDirty(true);
+      showToast('Block removed', false, [{
+        label: 'Undo',
+        action: function () {
+          parent.insertBefore(block, nextSibling);
+          activateEditing();
+          injectDragHandles();
+          initBlockSorting();
+        }
+      }]);
+    }
+
+    blockControls.addEventListener('mousedown', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn || !activeBlock) return;
+      e.preventDefault();
+      var action = btn.getAttribute('data-block-action');
+      if (action === 'duplicate') {
+        duplicateBlock(activeBlock);
+      } else if (action === 'remove') {
+        removeBlock(activeBlock);
+      }
+    });
+
+    // Block drag handles and SortableJS
+    injectDragHandles();
+
+    function initBlockSorting() {
+      if (typeof Sortable === 'undefined') return;
+      var blocks = document.querySelectorAll('[data-galley-block]');
+      var parents = [];
+      blocks.forEach(function (block) {
+        if (block.parentNode && parents.indexOf(block.parentNode) === -1) {
+          parents.push(block.parentNode);
+        }
+      });
+      parents.forEach(function (parent) {
+        // Destroy existing instance if any
+        if (parent._sortable) parent._sortable.destroy();
+        parent._sortable = Sortable.create(parent, {
+          handle: '.galley-block-drag-handle',
+          draggable: '[data-galley-block]',
+          animation: 150,
+          ghostClass: 'galley-block-ghost',
+          chosenClass: 'galley-block-chosen',
+          onEnd: function () {
+            setDirty(true);
+          }
+        });
+      });
+    }
+
+    initBlockSorting();
+
     if (container) {
       container.appendChild(saveBtn);
       container.appendChild(downloadBtn);
       container.appendChild(toastEl);
       container.appendChild(toolbar);
+      container.appendChild(blockControls);
       container.appendChild(bannerEl);
     } else {
       document.body.appendChild(saveBtn);
       document.body.appendChild(downloadBtn);
       document.body.appendChild(toastEl);
       document.body.appendChild(toolbar);
+      document.body.appendChild(blockControls);
       document.body.appendChild(bannerEl);
     }
 
@@ -564,9 +796,11 @@
     });
     window.addEventListener('scroll', function () {
       if (toolbar.classList.contains('galley-toolbar-visible')) updateToolbar();
+      if (activeBlock) showBlockControls(activeBlock);
     });
     window.addEventListener('resize', function () {
       if (toolbar.classList.contains('galley-toolbar-visible')) updateToolbar();
+      if (activeBlock) showBlockControls(activeBlock);
     });
 
     // --- Auto-reload polling ---

@@ -508,3 +508,43 @@ describe('POST /save/:filename (version conflict)', () => {
     expect(new Date(res.body.version).toISOString()).toBe(res.body.version);
   });
 });
+
+describe('block operations integration', () => {
+  let tmpDir;
+  let tmpApp;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-block-'));
+    await copyFile(
+      path.join(fixturesDir, 'test.html'),
+      path.join(tmpDir, 'test.html')
+    );
+    tmpApp = createApp(tmpDir);
+  });
+
+  test('data-galley-block attributes survive save round-trip', async () => {
+    const htmlWithBlocks = '<!DOCTYPE html>\n<html><head><title>Test</title></head><body>' +
+      '<div data-galley-block><p>Block One</p></div>' +
+      '<div data-galley-block><p>Block Two</p></div>' +
+      '</body></html>';
+    await request(tmpApp)
+      .post('/save/test.html')
+      .send({ html: htmlWithBlocks });
+    const res = await request(tmpApp).get('/edit/test.html');
+    expect(res.text).toContain('data-galley-block');
+    expect(res.text).toContain('Block One');
+    expect(res.text).toContain('Block Two');
+  });
+
+  test('injected payload includes SortableJS script', async () => {
+    const res = await request(tmpApp).get('/edit/test.html');
+    // SortableJS defines a Sortable constructor
+    expect(res.text).toContain('Sortable');
+    // Should have two script tags inside galley-ui
+    const galleyStart = res.text.indexOf('galley:start');
+    const galleyEnd = res.text.indexOf('galley:end');
+    const galleyBlock = res.text.substring(galleyStart, galleyEnd);
+    const scriptCount = (galleyBlock.match(/<script>/g) || []).length;
+    expect(scriptCount).toBe(2);
+  });
+});
