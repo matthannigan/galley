@@ -56,6 +56,32 @@ Formatting is stored as standard HTML (`<strong>`, `<em>`, `<a>`) and persists t
 - **`Ctrl+V` / `Cmd+V`** — pastes plain text (all formatting stripped). This is the default.
 - **`Ctrl+Shift+V` / `Cmd+Shift+V`** — pastes with formatting, but only bold, italic, and links are preserved. All other formatting (colors, font sizes, styles, etc.) is stripped. Links with `javascript:` URLs are rejected for security.
 
+### Undo
+
+Browser undo (`Ctrl+Z` / `Cmd+Z`) works normally for keystroke-level changes.
+
+For larger reversals, press `Escape` while editing an element to revert it to its state when you first focused it. Press `Escape` multiple times to step back through earlier states. When there's nothing left to revert, `Escape` exits the element.
+
+Undo history is cleared after a successful save.
+
+### Save Conflicts
+
+If someone else (or another tab) saves the same document while you have unsaved changes, Galley will warn you when you try to save:
+
+- **Reload** — discards your changes and loads the latest version from disk
+- **Force Save** — overwrites the file with your version
+
+If you have no unsaved changes, the document reloads automatically when it detects a newer version on disk.
+
+### Auto-Reload
+
+Galley polls the server every few seconds to check for file changes. If the document is updated on disk (by another editor, another tab, or a script):
+
+- **No unsaved changes**: the page reloads automatically with the latest content
+- **Unsaved changes**: a banner appears letting you choose when to reload
+
+Polling pauses when the tab is in the background and resumes when you return.
+
 ### Editing Constraints
 
 - **No structural changes** — pressing Enter in block elements (paragraphs, headings, etc.) is suppressed to prevent accidental structure changes. List items allow Enter for multi-line content.

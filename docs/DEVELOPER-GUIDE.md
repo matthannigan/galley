@@ -86,6 +86,66 @@ Paste is intercepted on all contenteditable elements. The behavior depends on th
 
 This prevents pasting of styles, classes, font tags, and potentially dangerous markup while keeping the three formatting types the toolbar supports.
 
+## Undo (Element-Level Revert)
+
+Undo provides element-level revert as a safety net on top of the browser's native `contenteditable` undo (Ctrl+Z / Cmd+Z), which handles keystroke-level changes.
+
+### Snapshot Stack
+
+A `Map<Element, string[]>` (`undoSnapshots`) stores innerHTML snapshots per editable element. Snapshots are captured on `focusin` events. The stack is capped at 20 entries per element (oldest dropped via `shift()`).
+
+### Escape Key Behavior
+
+When the user presses Escape inside an editable element:
+
+1. Pop the most recent snapshot from the element's stack
+2. If it matches current innerHTML (no changes since focus), pop again to get the previous state
+3. If a different snapshot is found, restore it and call `setDirty(true)`
+4. If the stack is empty, blur the element (natural Escape behavior)
+
+This allows multi-level revert by pressing Escape repeatedly.
+
+### Reset
+
+`undoSnapshots.clear()` is called on successful save (both normal and force save). The saved state becomes the new baseline.
+
+## Version Tracking and Save Conflicts
+
+### Server-Side Version
+
+The file's `mtime` (modification timestamp) serves as the version identifier. It flows through the system as an ISO 8601 string.
+
+- **`GET /edit/:filename`** injects the version as `data-galley-version` attribute on the `#galley-ui` container div
+- **`GET /status/:filename`** returns `{ lastModified: "ISO-8601" }` — file stats only, no content read
+- **`POST /save/:filename`** accepts an optional `version` field. If present, compares against current mtime:
+  - Match: save proceeds, response includes `{ ok: true, version: "new-mtime" }`
+  - Mismatch: returns `409 Conflict` with `{ error: "...", currentVersion: "current-mtime" }`
+  - Omitted: save proceeds without check (backwards compatibility)
+
+### Client-Side Conflict Handling
+
+The client reads the initial version from `data-galley-version` on DOMContentLoaded and sends it with every save. On 409 response, a persistent amber banner appears with Reload and Force Save buttons. Force Save re-sends the HTML without a version field, bypassing the check.
+
+On successful save, the client updates its version from the response.
+
+## Auto-Reload Polling
+
+The client polls `GET /status/:filename` every 5 seconds to detect external file changes.
+
+### Behavior
+
+- **File changed + no unsaved changes (`!dirty`)**: automatic `window.location.reload()`
+- **File changed + unsaved changes (`dirty`)**: shows amber banner with Reload button (does not auto-reload)
+- **File unchanged or network error**: no action (errors are silently ignored)
+
+### Page Visibility Optimization
+
+Polling pauses when the tab is hidden (`document.visibilitychange` event). When the tab becomes visible again, an immediate poll fires followed by resuming the interval. This avoids unnecessary network requests for background tabs.
+
+### Banner Component
+
+Both save conflict (409) and auto-reload use the same `showBanner(message, buttons)` / `hideBanner()` functions and `#galley-banner` element. Only one banner is shown at a time — save conflict banners take priority since they include the Force Save option.
+
 ## Download Button (Hidden)
 
 The editing view creates a download `<a>` element (`#galley-download`) in the DOM on every page load, but it is hidden via `display: none` in `src/galley-styles.css`. The `/download/:filename` route and file picker download links remain fully functional.

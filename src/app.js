@@ -152,20 +152,39 @@ export default function createApp(docsDir, options = {}) {
 </html>`);
   });
 
+  app.get('/status/:filename', async (req, res) => {
+    const { filename } = req.params;
+    const result = validateFilename(filename);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+
+    try {
+      const fileStat = await stat(result.filePath);
+      res.json({ lastModified: fileStat.mtime.toISOString() });
+    } catch {
+      return res.status(404).json({ error: 'File not found' });
+    }
+  });
+
   app.get('/edit/:filename', async (req, res) => {
     const { filename } = req.params;
     const result = validateFilename(filename);
     if (result.error) return res.status(result.status).send(result.error);
 
+    let fileStat;
     try {
-      await access(result.filePath);
+      fileStat = await stat(result.filePath);
     } catch {
       return res.status(404).send('File not found');
     }
 
     const html = await readFile(result.filePath, 'utf-8');
     const injected = await injectEditing(html);
-    res.type('html').send(injected);
+    const version = fileStat.mtime.toISOString();
+    const withVersion = injected.replace(
+      '<div id="galley-ui">',
+      `<div id="galley-ui" data-galley-version="${version}">`
+    );
+    res.type('html').send(withVersion);
   });
 
   app.get('/download/:filename', async (req, res) => {
@@ -194,8 +213,21 @@ export default function createApp(docsDir, options = {}) {
     }
 
     try {
+      // Version conflict check: if client sends a version, verify it matches
+      if (req.body.version) {
+        const fileStat = await stat(result.filePath);
+        const currentVersion = fileStat.mtime.toISOString();
+        if (req.body.version !== currentVersion) {
+          return res.status(409).json({
+            error: 'This document was updated since you last loaded it.',
+            currentVersion
+          });
+        }
+      }
+
       await atomicWriteWithBackup(result.filePath, req.body.html, { requireExists: true });
-      res.json({ ok: true });
+      const newStat = await stat(result.filePath);
+      res.json({ ok: true, version: newStat.mtime.toISOString() });
     } catch (err) {
       if (err.statusCode === 404) return res.status(404).json({ error: 'File not found' });
       res.status(500).json({ error: 'Save failed: ' + err.message });

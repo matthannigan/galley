@@ -176,7 +176,8 @@ describe('POST /save/:filename', () => {
       .post('/save/test.html')
       .send({ html: newHtml });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBe(true);
+    expect(res.body.version).toBeDefined();
 
     const saved = await readFile(path.join(tmpDir, 'test.html'), 'utf-8');
     expect(saved).toBe(newHtml);
@@ -409,5 +410,101 @@ describe('file picker includes upload control', () => {
     const res = await request(app).get('/');
     expect(res.text).toContain('galley-upload');
     expect(res.text).toContain('type="file"');
+  });
+});
+
+describe('GET /status/:filename', () => {
+  test('returns lastModified timestamp', async () => {
+    const res = await request(app).get('/status/test.html');
+    expect(res.status).toBe(200);
+    expect(res.body.lastModified).toBeDefined();
+    // Verify it's a valid ISO date
+    expect(new Date(res.body.lastModified).toISOString()).toBe(res.body.lastModified);
+  });
+
+  test('returns 404 for nonexistent file', async () => {
+    const res = await request(app).get('/status/nonexistent.html');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 for non-HTML extension', async () => {
+    const res = await request(app).get('/status/file.js');
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects path traversal', async () => {
+    const res = await request(app).get('/status/%2e%2e%2fpasswd.html');
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /edit/:filename (version)', () => {
+  test('includes data-galley-version attribute', async () => {
+    const res = await request(app).get('/edit/test.html');
+    expect(res.status).toBe(200);
+    expect(res.text).toMatch(/data-galley-version="[^"]+"/);
+  });
+
+  test('version matches file mtime', async () => {
+    const res = await request(app).get('/edit/test.html');
+    const match = res.text.match(/data-galley-version="([^"]+)"/);
+    expect(match).not.toBeNull();
+    const statusRes = await request(app).get('/status/test.html');
+    expect(match[1]).toBe(statusRes.body.lastModified);
+  });
+});
+
+describe('POST /save/:filename (version conflict)', () => {
+  let tmpDir;
+  let tmpApp;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-conflict-'));
+    await copyFile(
+      path.join(fixturesDir, 'test.html'),
+      path.join(tmpDir, 'test.html')
+    );
+    tmpApp = createApp(tmpDir);
+  });
+
+  test('saves successfully with matching version', async () => {
+    const statusRes = await request(tmpApp).get('/status/test.html');
+    const currentVersion = statusRes.body.lastModified;
+
+    const res = await request(tmpApp)
+      .post('/save/test.html')
+      .send({ html: '<html><body>Updated</body></html>', version: currentVersion });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.version).toBeDefined();
+    // New version should differ from old version after write
+    expect(res.body.version).not.toBe(currentVersion);
+  });
+
+  test('returns 409 when version does not match', async () => {
+    const res = await request(tmpApp)
+      .post('/save/test.html')
+      .send({ html: '<html><body>Stale</body></html>', version: '2000-01-01T00:00:00.000Z' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain('updated since');
+    expect(res.body.currentVersion).toBeDefined();
+  });
+
+  test('saves successfully without version (backwards compat)', async () => {
+    const res = await request(tmpApp)
+      .post('/save/test.html')
+      .send({ html: '<html><body>No version</body></html>' });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.version).toBeDefined();
+  });
+
+  test('returns new version in save response', async () => {
+    const res = await request(tmpApp)
+      .post('/save/test.html')
+      .send({ html: '<html><body>Check version</body></html>' });
+    expect(res.status).toBe(200);
+    // Returned version should be a valid ISO date
+    expect(new Date(res.body.version).toISOString()).toBe(res.body.version);
   });
 });
