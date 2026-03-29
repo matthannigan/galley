@@ -88,12 +88,14 @@ describe('save UI', () => {
     document.body.innerHTML = '';
   });
 
-  test('creates save button on DOMContentLoaded', () => {
+  test('creates save button on DOMContentLoaded (disabled by default)', () => {
     document.body.innerHTML = '<p>Content</p><div id="galley-ui"></div>';
     eval(clientScript);
     document.dispatchEvent(new Event('DOMContentLoaded'));
-    expect(document.getElementById('galley-save')).not.toBeNull();
-    expect(document.getElementById('galley-save').textContent).toBe('Save');
+    var btn = document.getElementById('galley-save');
+    expect(btn).not.toBeNull();
+    expect(btn.textContent).toBe('Save');
+    expect(btn.disabled).toBe(true);
   });
 
   test('creates toast container on DOMContentLoaded', () => {
@@ -122,6 +124,82 @@ describe('save UI', () => {
     });
     var prevented = !document.dispatchEvent(event);
     expect(prevented).toBe(true);
+  });
+});
+
+describe('download button', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  test('creates download link on DOMContentLoaded', () => {
+    document.body.innerHTML = '<p>Content</p><div id="galley-ui"></div>';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    var dl = document.getElementById('galley-download');
+    expect(dl).not.toBeNull();
+    expect(dl.tagName).toBe('A');
+    expect(dl.getAttribute('href')).toBe('/download/test.html');
+    expect(dl.textContent).toBe('Download');
+  });
+
+  test('appends download link inside galley-ui container', () => {
+    document.body.innerHTML = '<p>Content</p><div id="galley-ui"></div>';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    var container = document.getElementById('galley-ui');
+    expect(container.querySelector('#galley-download')).not.toBeNull();
+  });
+});
+
+describe('unsaved changes tracking', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    document.title = 'Test';
+  });
+
+  test('sets dirty indicator on input in editable element', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    p.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.getElementById('galley-save').classList.contains('galley-dirty')).toBe(true);
+  });
+
+  test('enables save button when dirty', () => {
+    setupDom('<p>Hello</p>');
+    var btn = document.getElementById('galley-save');
+    expect(btn.disabled).toBe(true);
+    var p = document.querySelector('p');
+    p.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(btn.disabled).toBe(false);
+  });
+
+  test('does not set dirty on input in non-editable element', () => {
+    document.body.innerHTML = '<div>Not editable</div><div id="galley-ui"></div>';
+    eval(clientScript);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    var div = document.querySelector('div');
+    div.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.getElementById('galley-save').classList.contains('galley-dirty')).toBe(false);
+  });
+
+  test('updates document title with bullet prefix when dirty', () => {
+    setupDom('<p>Hello</p>');
+    var p = document.querySelector('p');
+    p.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.title).toBe('\u2022 Test');
+  });
+
+  test('registers beforeunload handler', () => {
+    var hadBeforeunload = false;
+    var origAddEventListener = window.addEventListener;
+    window.addEventListener = function (type) {
+      if (type === 'beforeunload') hadBeforeunload = true;
+      return origAddEventListener.apply(this, arguments);
+    };
+    setupDom('<p>Hello</p>');
+    window.addEventListener = origAddEventListener;
+    expect(hadBeforeunload).toBe(true);
   });
 });
 

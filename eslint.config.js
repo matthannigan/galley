@@ -26,6 +26,7 @@ export default [
         document: 'readonly',
         Event: 'readonly',
         KeyboardEvent: 'readonly',
+        window: 'readonly',
       },
     },
   },

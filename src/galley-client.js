@@ -65,10 +65,40 @@
   // --- Save & Backup ---
 
   var saving = false;
+  var dirty = false;
+  var originalTitle = document.title;
   var saveBtn = null;
   var toastEl = null;
   var pathParts = window.location.pathname.split('/');
   var filename = decodeURIComponent(pathParts[pathParts.length - 1]);
+
+  function setDirty(value) {
+    dirty = value;
+    if (saveBtn) {
+      saveBtn.disabled = !value;
+      if (value) {
+        saveBtn.classList.add('galley-dirty');
+      } else {
+        saveBtn.classList.remove('galley-dirty');
+      }
+    }
+    document.title = value ? '\u2022 ' + originalTitle : originalTitle;
+  }
+
+  // Track content changes in editable elements
+  document.addEventListener('input', function (e) {
+    if (e.target.closest('[contenteditable="true"]')) {
+      setDirty(true);
+    }
+  });
+
+  // Warn before navigating away with unsaved changes
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 
   function stripGalleyArtifacts(html) {
     // Concatenation avoids these literals appearing in the script source,
@@ -149,7 +179,7 @@
   }
 
   function saveDocument() {
-    if (saving) return;
+    if (saving || !dirty) return;
     saving = true;
     updateSaveButton(true);
 
@@ -174,6 +204,7 @@
       saving = false;
       updateSaveButton(false);
       if (xhr.status === 200) {
+        setDirty(false);
         showToast('Saved');
       } else {
         var msg = 'Save failed';
@@ -207,6 +238,7 @@
     saveBtn.setAttribute('type', 'button');
     saveBtn.setAttribute('id', 'galley-save');
     saveBtn.textContent = 'Save';
+    saveBtn.disabled = true;
     saveBtn.addEventListener('click', saveDocument);
 
     toastEl = document.createElement('div');
@@ -214,11 +246,18 @@
     toastEl.setAttribute('role', 'status');
     toastEl.setAttribute('aria-live', 'polite');
 
+    var downloadBtn = document.createElement('a');
+    downloadBtn.setAttribute('id', 'galley-download');
+    downloadBtn.setAttribute('href', '/download/' + encodeURIComponent(filename));
+    downloadBtn.textContent = 'Download';
+
     if (container) {
       container.appendChild(saveBtn);
+      container.appendChild(downloadBtn);
       container.appendChild(toastEl);
     } else {
       document.body.appendChild(saveBtn);
+      document.body.appendChild(downloadBtn);
       document.body.appendChild(toastEl);
     }
   });

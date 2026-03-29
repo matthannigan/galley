@@ -8,8 +8,6 @@ Galley is a lightweight, self-hosted HTML document editor for collaborative text
 
 The name comes from *galley proof* — the near-final version of a document handed to an editor for text corrections before press.
 
-See `docs/PRD.md` for full requirements and `docs/EPICS.md` for the build plan.
-
 ## Build & Run Commands
 
 ```bash

@@ -120,6 +120,43 @@ describe('GET /edit/:filename (injection)', () => {
   });
 });
 
+describe('GET /download/:filename', () => {
+  test('serves file as attachment with Content-Disposition header', async () => {
+    const res = await request(app).get('/download/test.html');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('attachment');
+    expect(res.headers['content-disposition']).toContain('test.html');
+  });
+
+  test('serves raw HTML without galley injection', async () => {
+    const res = await request(app).get('/download/test.html');
+    expect(res.text).not.toContain('<!-- galley:start -->');
+    expect(res.text).toContain('Test content');
+  });
+
+  test('returns 404 for nonexistent file', async () => {
+    const res = await request(app).get('/download/nonexistent.html');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 for non-HTML extension', async () => {
+    const res = await request(app).get('/download/file.js');
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects path traversal', async () => {
+    const res = await request(app).get('/download/%2e%2e%2fpasswd.html');
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('file picker includes download links', () => {
+  test('each file row has a download link', async () => {
+    const res = await request(app).get('/');
+    expect(res.text).toContain('/download/test.html');
+  });
+});
+
 describe('POST /save/:filename', () => {
   let tmpDir;
   let tmpApp;
@@ -245,5 +282,98 @@ describe('POST /save/:filename', () => {
 
     const backupContent = await readFile(path.join(customBackupDir, backups[0]), 'utf-8');
     expect(backupContent).toContain('Test content');
+  });
+});
+
+describe('POST /upload', () => {
+  let tmpDir;
+  let tmpApp;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-upload-'));
+    tmpApp = createApp(tmpDir);
+  });
+
+  test('uploads a new HTML file', async () => {
+    const html = '<!DOCTYPE html>\n<html><body><p>New file</p></body></html>';
+    const res = await request(tmpApp)
+      .post('/upload')
+      .send({ filename: 'new.html', html });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+
+    const saved = await readFile(path.join(tmpDir, 'new.html'), 'utf-8');
+    expect(saved).toBe(html);
+  });
+
+  test('uploaded file is accessible via /edit', async () => {
+    const html = '<!DOCTYPE html>\n<html><body><p>Uploaded</p></body></html>';
+    await request(tmpApp).post('/upload').send({ filename: 'uploaded.html', html });
+
+    const res = await request(tmpApp).get('/edit/uploaded.html');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Uploaded');
+  });
+
+  test('creates backup when overwriting existing file', async () => {
+    // Create initial file
+    const original = '<!DOCTYPE html>\n<html><body><p>Original</p></body></html>';
+    await request(tmpApp).post('/upload').send({ filename: 'doc.html', html: original });
+
+    // Upload again with same name
+    const updated = '<!DOCTYPE html>\n<html><body><p>Updated</p></body></html>';
+    const res = await request(tmpApp).post('/upload').send({ filename: 'doc.html', html: updated });
+    expect(res.status).toBe(200);
+
+    const saved = await readFile(path.join(tmpDir, 'doc.html'), 'utf-8');
+    expect(saved).toBe(updated);
+
+    const backups = await readdir(path.join(tmpDir, '.galley-backups'));
+    expect(backups.length).toBe(1);
+    const backupContent = await readFile(path.join(tmpDir, '.galley-backups', backups[0]), 'utf-8');
+    expect(backupContent).toBe(original);
+  });
+
+  test('rejects non-HTML filename', async () => {
+    const res = await request(tmpApp)
+      .post('/upload')
+      .send({ filename: 'file.js', html: '<html></html>' });
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects path traversal in filename', async () => {
+    const res = await request(tmpApp)
+      .post('/upload')
+      .send({ filename: '../evil.html', html: '<html></html>' });
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects missing filename', async () => {
+    const res = await request(tmpApp)
+      .post('/upload')
+      .send({ html: '<html></html>' });
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects missing html field', async () => {
+    const res = await request(tmpApp)
+      .post('/upload')
+      .send({ filename: 'test.html' });
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects empty html field', async () => {
+    const res = await request(tmpApp)
+      .post('/upload')
+      .send({ filename: 'test.html', html: '' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('file picker includes upload control', () => {
+  test('page contains upload input', async () => {
+    const res = await request(app).get('/');
+    expect(res.text).toContain('galley-upload');
+    expect(res.text).toContain('type="file"');
   });
 });
