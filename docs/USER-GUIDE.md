@@ -19,13 +19,15 @@ docker run -p 3000:3000 -v /path/to/docs:/docs galley
 
 Open `http://localhost:3000` in your browser to see the file picker.
 
-## File Picker
+## Landing Page
 
-The file picker at `/` lists all `.html` files in the documents directory. From here you can:
+The landing page at `/` shows all `.html` files in the documents directory as a card grid with thumbnail previews. A sidebar explains what Galley is and how it works. From here you can:
 
-- **Open a document** — click any filename to open it in the editor
-- **Download a document** — click the Download link to save the raw HTML file to your computer
-- **Upload a document** — use the file upload control at the bottom of the page to add a new HTML file
+- **Open a document** — click any card or document title to open it in the editor
+- **Download a document** — click the Download link on any card to save the raw HTML file
+- **Upload documents** — click the upload card (or drag files onto it) to add one or more `.html` files. After upload, the page reloads and new documents appear in the grid.
+
+Documents are sorted by most recently modified, so newly uploaded or saved files appear first. Each card shows a thumbnail preview, the document title (extracted from the HTML `<title>` tag), filename, and last-modified date.
 
 ## Editing
 
@@ -122,10 +124,11 @@ Blocks are typically `<div>` or `<section>` elements that wrap a logical content
 
 ## Uploading
 
-The file picker page has an upload control that accepts `.html` files. When you upload:
+The landing page has an upload card that accepts one or more `.html` files. When you upload:
 
 - If a file with the same name already exists, a timestamped backup is created before overwriting
-- After upload, you are automatically redirected to the editor for that file
+- After all uploads complete, the page reloads and the new documents appear in the card grid
+- If any uploads fail, an alert names the failed files; successfully uploaded files still appear
 
 ## Downloading
 

@@ -4,6 +4,7 @@ import os from 'os';
 import { mkdtemp, readFile, readdir, copyFile } from 'fs/promises';
 import request from 'supertest';
 import createApp from '../src/app.js';
+import { extractTitle } from '../src/index-page.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'fixtures');
@@ -146,6 +147,41 @@ describe('GET /download/:filename', () => {
 
   test('rejects path traversal', async () => {
     const res = await request(app).get('/download/%2e%2e%2fpasswd.html');
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /preview/:filename', () => {
+  test('serves HTML file with correct content type', async () => {
+    const res = await request(app).get('/preview/test.html');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.text).toContain('Test content');
+  });
+
+  test('does not include Content-Disposition header', async () => {
+    const res = await request(app).get('/preview/test.html');
+    expect(res.headers['content-disposition']).toBeUndefined();
+  });
+
+  test('does not inject galley editing markers', async () => {
+    const res = await request(app).get('/preview/test.html');
+    expect(res.text).not.toContain('<!-- galley:start -->');
+    expect(res.text).not.toContain('galley-ui');
+  });
+
+  test('returns 404 for nonexistent file', async () => {
+    const res = await request(app).get('/preview/nonexistent.html');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 for non-HTML extension', async () => {
+    const res = await request(app).get('/preview/file.js');
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects path traversal', async () => {
+    const res = await request(app).get('/preview/%2e%2e%2fpasswd.html');
     expect(res.status).toBe(400);
   });
 });
@@ -406,10 +442,11 @@ describe('formatting tag round-trip', () => {
 });
 
 describe('file picker includes upload control', () => {
-  test('page contains upload input', async () => {
+  test('page contains upload input with multiple support', async () => {
     const res = await request(app).get('/');
     expect(res.text).toContain('galley-upload');
     expect(res.text).toContain('type="file"');
+    expect(res.text).toContain('multiple');
   });
 });
 
@@ -506,6 +543,60 @@ describe('POST /save/:filename (version conflict)', () => {
     expect(res.status).toBe(200);
     // Returned version should be a valid ISO date
     expect(new Date(res.body.version).toISOString()).toBe(res.body.version);
+  });
+});
+
+describe('index page structure', () => {
+  test('contains iframe thumbnails with /preview/ src', async () => {
+    const res = await request(app).get('/');
+    expect(res.text).toContain('src="/preview/test.html"');
+    expect(res.text).not.toContain('src="/edit/test.html"');
+  });
+
+  test('shows document title extracted from file', async () => {
+    const res = await request(app).get('/');
+    // test.html has <title>Test</title>
+    expect(res.text).toContain('>Test</a>');
+  });
+
+  test('shows file count', async () => {
+    const res = await request(app).get('/');
+    expect(res.text).toMatch(/\d+ files?/);
+  });
+
+  test('shows sidebar with brand and sections', async () => {
+    const res = await request(app).get('/');
+    expect(res.text).toContain('class="panel-brand"');
+    expect(res.text).toContain('What is this?');
+    expect(res.text).toContain('How it works');
+    expect(res.text).toContain('Good to know');
+  });
+});
+
+describe('extractTitle', () => {
+  test('extracts title from HTML', () => {
+    expect(extractTitle('<html><head><title>My Doc</title></head></html>', 'file.html'))
+      .toBe('My Doc');
+  });
+
+  test('falls back to filename without .html when no title tag', () => {
+    expect(extractTitle('<html><body>No title</body></html>', 'my-doc.html'))
+      .toBe('my-doc');
+  });
+
+  test('falls back when title tag is empty', () => {
+    expect(extractTitle('<html><head><title></title></head></html>', 'report.html'))
+      .toBe('report');
+  });
+
+  test('handles whitespace in title', () => {
+    expect(extractTitle('<html><head><title>  Spaced Title  </title></head></html>', 'file.html'))
+      .toBe('Spaced Title');
+  });
+
+  test('decodes HTML entities in title', () => {
+    expect(extractTitle('<html><head><title>R&amp;D Lab &mdash; Overview</title></head></html>', 'file.html'))
+      .toBe('R&D Lab \u2014 Overview');
   });
 });
 

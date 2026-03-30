@@ -10,7 +10,7 @@ This roadmap sequences feature work so that each phase builds foundation for wha
 Download button on the file picker serves raw HTML files as browser downloads (`Content-Disposition: attachment`).
 
 ### 1b. Upload ✓
-File upload control on the file picker accepts `.html` files. Overwrites create timestamped backups. Redirects to editing view after upload.
+File upload control accepts `.html` files. Overwrites create timestamped backups. Supports multi-file upload (Phase 5a); page reloads after upload to show new documents in the card grid.
 
 ### 1c. Unsaved Changes Tracking ✓
 Dirty flag with save button indicator (orange dot), title prefix (`• `), and `beforeunload` navigation guard. Foundation for Phases 2–4.
@@ -52,21 +52,13 @@ Drag-and-drop via vendored SortableJS. Per-block drag handle (`<button contented
 
 Phases 1–4 built a capable editing environment. Phase 5 shifts focus from functionality to usability — making the system approachable for first-time users and discoverable for returning ones, without compromising Galley's minimal aesthetic.
 
-### 5a. Landing Page Refresh
+### 5a. Landing Page Refresh ✓
 
-Redesign the index page to serve two audiences simultaneously: returning users who want to find and open a file quickly, and new users who need to understand what they're looking at.
+*Completed 2026-03-30*
 
-**File browser improvements:**
-- Last-modified timestamps alongside filenames
-- Cleaner visual treatment (card-style or table with subtle styling) while staying minimal
-- File size display
+Redesigned the index page with a sidebar + card gallery layout. Sidebar provides onboarding content (what Galley is, how editing works, backup/conflict info). Card grid shows thumbnail previews via iframe (`GET /preview/:filename` — raw HTML without editing injection), document titles extracted from `<title>` tags, filenames, and last-modified dates. Documents sorted by most recently modified. Upload card supports multi-file upload with page reload (no redirect to editor). Responsive layout collapses to single column on narrow screens. Typography uses Google Fonts (Fraunces, Outfit, JetBrains Mono).
 
-**System introduction section:**
-- Brief, non-technical explanation of what Galley is and how the editing workflow works
-- Visually distinct from the file list but not competing for attention — a returning user should be able to ignore it naturally
-- Pointer to the guided tour available on any edit page
-
-Standalone — no dependencies on 5b or 5c.
+**Note:** The sidebar includes a "Take a guided tour" link, currently hidden (`display: none`) until the guided tour feature (5c) is implemented.
 
 ### 5b. Editor Help Panel
 
@@ -129,7 +121,7 @@ Phase 1b: Upload ✓
 Phase 3a: Formatting ✓
 Phase 3b: Paste ✓
 
-Phase 5a: Landing Page Refresh
+Phase 5a: Landing Page Refresh ✓
 Phase 5b: Editor Help Panel
     └── Phase 5c: Guided Tour
 ```

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galley — Option A: Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c1917;
+    --ink-secondary: #78716c;
+    --ink-tertiary: #a8a29e;
+    --surface: #fafaf9;
+    --surface-warm: #f5f5f4;
+    --accent: #3b5998;
+    --accent-hover: #2d4373;
+    --rule: #e7e5e4;
+    --rule-strong: #d6d3d1;
+    --serif: 'Newsreader', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--surface);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 80px 24px 120px;
+  }
+
+  /* ── Masthead ── */
+  .masthead {
+    margin-bottom: 56px;
+  }
+
+  .masthead-title {
+    font-family: var(--serif);
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 20px;
+  }
+
+  .masthead-description {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-secondary);
+    max-width: 520px;
+  }
+
+  .masthead-description a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .masthead-description a:hover {
+    color: var(--accent-hover);
+  }
+
+  .masthead-rule {
+    display: block;
+    width: 40px;
+    height: 1.5px;
+    background: var(--rule-strong);
+    margin-top: 24px;
+    border: none;
+  }
+
+  /* ── Document List ── */
+  .doc-list {
+    list-style: none;
+  }
+
+  .doc-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: baseline;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--rule);
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .doc-item:first-child {
+    border-top: 1px solid var(--rule);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .doc-item:nth-child(1) { animation-delay: 0.05s; }
+  .doc-item:nth-child(2) { animation-delay: 0.10s; }
+  .doc-item:nth-child(3) { animation-delay: 0.15s; }
+  .doc-item:nth-child(4) { animation-delay: 0.20s; }
+
+  .doc-name {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+
+  .doc-name a {
+    color: var(--ink);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .doc-name a:hover {
+    color: var(--accent);
+  }
+
+  .doc-meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-tertiary);
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+  }
+
+  .doc-action a {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-tertiary);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .doc-action a:hover {
+    color: var(--ink);
+  }
+
+  /* ── Upload Section ── */
+  .upload-section {
+    margin-top: 48px;
+    padding-top: 32px;
+  }
+
+  .upload-zone {
+    border: 1.5px dashed var(--rule-strong);
+    border-radius: 6px;
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--ink-tertiary);
+    background: var(--surface-warm);
+  }
+
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-label {
+    font-size: 13px;
+    color: var(--ink-secondary);
+  }
+
+  .upload-label strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ── Tour Hint ── */
+  .tour-hint {
+    margin-top: 56px;
+    padding: 16px 20px;
+    background: var(--surface-warm);
+    border-left: 2px solid var(--rule-strong);
+    font-size: 13px;
+    color: var(--ink-secondary);
+    line-height: 1.55;
+    animation: fadeUp 0.4s ease 0.35s both;
+  }
+
+  .tour-hint a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 500;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 560px) {
+    .page { padding: 48px 20px 80px; }
+    .masthead-title { font-size: 26px; }
+    .doc-item {
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+    .doc-meta { grid-column: 1; padding-top: 0; }
+    .doc-action { grid-column: 2; grid-row: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Masthead / Orientation -->
+  <header class="masthead">
+    <h1 class="masthead-title">Galley</h1>
+    <p class="masthead-description">
+      A lightweight document editor for collaborative text editing. Click any document below to open it — editable text highlights when you hover. Your changes save back to the file on&nbsp;disk.
+    </p>
+    <hr class="masthead-rule">
+  </header>
+
+  <!-- Document List -->
+  <ul class="doc-list">
+    <li class="doc-item">
+      <div class="doc-name"><a href="/edit/civic-signal.html">Civic Signal Design Brief</a></div>
+      <div class="doc-meta">Mar 29, 3:26 pm</div>
+      <div class="doc-action"><a href="/download/civic-signal.html">Download</a></div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-name"><a href="/edit/civicrnd-firm-overview.html">Civic R&amp;D Lab — Firm Overview</a></div>
+      <div class="doc-meta">Mar 29, 3:26 pm</div>
+      <div class="doc-action"><a href="/download/civicrnd-firm-overview.html">Download</a></div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-name"><a href="/edit/sample.html">Project Aurora — Concept Brief</a></div>
+      <div class="doc-meta">Mar 30, 1:22 pm</div>
+      <div class="doc-action"><a href="/download/sample.html">Download</a></div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-name"><a href="/edit/youth-civic-futures-lab.html">Youth Civic Futures Lab Design Brief</a></div>
+      <div class="doc-meta">Mar 29, 3:27 pm</div>
+      <div class="doc-action"><a href="/download/youth-civic-futures-lab.html">Download</a></div>
+    </li>
+  </ul>
+
+  <!-- Upload -->
+  <div class="upload-section">
+    <div class="upload-zone">
+      <input type="file" accept=".html" id="galley-upload">
+      <div class="upload-label"><strong>Upload</strong> an HTML file or drop it here</div>
+    </div>
+  </div>
+
+  <!-- Tour Hint -->
+  <div class="tour-hint">
+    New to Galley? Open any document and look for the <strong>?</strong> button to see keyboard shortcuts and <a href="#">take a guided tour</a>.
+  </div>
+
+</div>
+</body>
+</html>

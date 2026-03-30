@@ -2,6 +2,20 @@
 
 Reverse-chronological list of technical findings and gotchas from implementation.
 
+## 2026-03-30 — Phase 5a (Landing Page Refresh)
+
+### HTML entities in `<title>` tags cause double-encoding
+Extracting `<title>` content with a regex returns raw HTML entity text (e.g., `&amp;`). Passing this through `escapeHtml()` produces `&amp;amp;`, which renders literally. Fix: decode common HTML entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&mdash;`, `&ndash;`, `&nbsp;`) in `extractTitle()` before the template's `escapeHtml()` re-encodes them.
+
+### Iframe thumbnail scaling requires coordinated width/scale values
+Iframe thumbnails use CSS `transform: scale()` to show a miniature document preview. The iframe `width` (as a percentage of the card) and `scale` factor must satisfy `width% × scale ≈ 100%` to fill the thumbnail area. For 8.5×11 documents (~850px wide), `width: 250%; scale(0.40)` shows the full page width in a ~340px card. The `height` percentage just needs to be large enough that the bottom edge isn't visible.
+
+### Iframe scrollbars require both CSS and HTML attribute removal
+`overflow: hidden` on the iframe's parent container clips the visual output but doesn't remove scrollbars rendered inside the iframe itself. The `scrolling="no"` HTML attribute (deprecated but still supported by all browsers) suppresses the iframe's internal scrollbars. Both are needed for clean thumbnails.
+
+### `escapeHtml` became unused in app.js after extracting index page
+Moving the index page template to `src/index-page.js` (which has its own `escapeHtml`) left the original in `src/app.js` unused. ESLint `no-unused-vars` caught it. The function was safe to remove since no other route handler uses it — filenames in other routes go through `validateFilename()` and are never interpolated into HTML.
+
 ## 2026-03-29 — Phase 4 (Block Operations)
 
 ### SortableJS requires handles inside the draggable element
