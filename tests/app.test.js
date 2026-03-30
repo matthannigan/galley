@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'url';
 import path from 'path';
 import os from 'os';
-import { mkdtemp, readFile, readdir, copyFile } from 'fs/promises';
+import { mkdtemp, readFile, readdir, copyFile, mkdir } from 'fs/promises';
 import request from 'supertest';
 import createApp from '../src/app.js';
 import { extractTitle } from '../src/index-page.js';
@@ -195,15 +195,18 @@ describe('file picker includes download links', () => {
 
 describe('POST /save/:filename', () => {
   let tmpDir;
+  let docsDir;
   let tmpApp;
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-save-'));
+    docsDir = path.join(tmpDir, 'docs');
+    await mkdir(docsDir);
     await copyFile(
       path.join(fixturesDir, 'test.html'),
-      path.join(tmpDir, 'test.html')
+      path.join(docsDir, 'test.html')
     );
-    tmpApp = createApp(tmpDir);
+    tmpApp = createApp(docsDir);
   });
 
   test('saves updated HTML to disk', async () => {
@@ -215,7 +218,7 @@ describe('POST /save/:filename', () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.version).toBeDefined();
 
-    const saved = await readFile(path.join(tmpDir, 'test.html'), 'utf-8');
+    const saved = await readFile(path.join(docsDir, 'test.html'), 'utf-8');
     expect(saved).toBe(newHtml);
   });
 
@@ -225,12 +228,12 @@ describe('POST /save/:filename', () => {
       .post('/save/test.html')
       .send({ html: newHtml });
 
-    const backupDir = path.join(tmpDir, '.galley-backups');
-    const backups = await readdir(backupDir);
+    const backupsDir = path.join(tmpDir, 'backups');
+    const backups = await readdir(backupsDir);
     expect(backups.length).toBe(1);
     expect(backups[0]).toMatch(/^test\.\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.html$/);
 
-    const backupContent = await readFile(path.join(backupDir, backups[0]), 'utf-8');
+    const backupContent = await readFile(path.join(backupsDir, backups[0]), 'utf-8');
     expect(backupContent).toContain('Test content');
   });
 
@@ -240,7 +243,7 @@ describe('POST /save/:filename', () => {
       .post('/save/test.html')
       .send({ html: htmlWithMarkers });
 
-    const saved = await readFile(path.join(tmpDir, 'test.html'), 'utf-8');
+    const saved = await readFile(path.join(docsDir, 'test.html'), 'utf-8');
     expect(saved).toBe(htmlWithMarkers);
   });
 
@@ -289,22 +292,22 @@ describe('POST /save/:filename', () => {
     expect(res1.status).toBe(200);
     expect(res2.status).toBe(200);
 
-    const saved = await readFile(path.join(tmpDir, 'test.html'), 'utf-8');
+    const saved = await readFile(path.join(docsDir, 'test.html'), 'utf-8');
     expect(saved).toBe(html2);
 
     // Verify no temp files left behind
-    const files = await readdir(tmpDir);
+    const files = await readdir(docsDir);
     const tmpFiles = files.filter(f => f.includes('.tmp.'));
     expect(tmpFiles.length).toBe(0);
 
     // Both saves should have created backups
-    const backups = await readdir(path.join(tmpDir, '.galley-backups'));
+    const backups = await readdir(path.join(tmpDir, 'backups'));
     expect(backups.length).toBeGreaterThanOrEqual(1);
   });
 
   test('saves backups to custom backupDir when configured', async () => {
     const customBackupDir = await mkdtemp(path.join(os.tmpdir(), 'galley-backup-'));
-    const customApp = createApp(tmpDir, { backupDir: customBackupDir });
+    const customApp = createApp(docsDir, { backupDir: customBackupDir });
 
     const newHtml = '<!DOCTYPE html>\n<html><body><p>Custom backup test</p></body></html>';
     const res = await request(customApp)
@@ -324,11 +327,14 @@ describe('POST /save/:filename', () => {
 
 describe('POST /upload', () => {
   let tmpDir;
+  let docsDir;
   let tmpApp;
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-upload-'));
-    tmpApp = createApp(tmpDir);
+    docsDir = path.join(tmpDir, 'docs');
+    await mkdir(docsDir);
+    tmpApp = createApp(docsDir);
   });
 
   test('uploads a new HTML file', async () => {
@@ -339,7 +345,7 @@ describe('POST /upload', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
 
-    const saved = await readFile(path.join(tmpDir, 'new.html'), 'utf-8');
+    const saved = await readFile(path.join(docsDir, 'new.html'), 'utf-8');
     expect(saved).toBe(html);
   });
 
@@ -362,12 +368,12 @@ describe('POST /upload', () => {
     const res = await request(tmpApp).post('/upload').send({ filename: 'doc.html', html: updated });
     expect(res.status).toBe(200);
 
-    const saved = await readFile(path.join(tmpDir, 'doc.html'), 'utf-8');
+    const saved = await readFile(path.join(docsDir, 'doc.html'), 'utf-8');
     expect(saved).toBe(updated);
 
-    const backups = await readdir(path.join(tmpDir, '.galley-backups'));
+    const backups = await readdir(path.join(tmpDir, 'backups'));
     expect(backups.length).toBe(1);
-    const backupContent = await readFile(path.join(tmpDir, '.galley-backups', backups[0]), 'utf-8');
+    const backupContent = await readFile(path.join(tmpDir, 'backups', backups[0]), 'utf-8');
     expect(backupContent).toBe(original);
   });
 
@@ -409,15 +415,18 @@ describe('POST /upload', () => {
 
 describe('formatting tag round-trip', () => {
   let tmpDir;
+  let docsDir;
   let tmpApp;
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-fmt-'));
+    docsDir = path.join(tmpDir, 'docs');
+    await mkdir(docsDir);
     await copyFile(
       path.join(fixturesDir, 'formatted-content.html'),
-      path.join(tmpDir, 'formatted-content.html')
+      path.join(docsDir, 'formatted-content.html')
     );
-    tmpApp = createApp(tmpDir);
+    tmpApp = createApp(docsDir);
   });
 
   test('formatting tags survive save round-trip', async () => {
@@ -428,7 +437,7 @@ describe('formatting tag round-trip', () => {
       .send({ html: htmlWithFormatting });
     expect(res.status).toBe(200);
 
-    const saved = await readFile(path.join(tmpDir, 'formatted-content.html'), 'utf-8');
+    const saved = await readFile(path.join(docsDir, 'formatted-content.html'), 'utf-8');
     expect(saved).toContain('<strong>bold</strong>');
     expect(saved).toContain('<em>italic</em>');
     expect(saved).toContain('<a href="https://example.com">a link</a>');
@@ -493,15 +502,18 @@ describe('GET /edit/:filename (version)', () => {
 
 describe('POST /save/:filename (version conflict)', () => {
   let tmpDir;
+  let docsDir;
   let tmpApp;
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-conflict-'));
+    docsDir = path.join(tmpDir, 'docs');
+    await mkdir(docsDir);
     await copyFile(
       path.join(fixturesDir, 'test.html'),
-      path.join(tmpDir, 'test.html')
+      path.join(docsDir, 'test.html')
     );
-    tmpApp = createApp(tmpDir);
+    tmpApp = createApp(docsDir);
   });
 
   test('saves successfully with matching version', async () => {
@@ -602,15 +614,18 @@ describe('extractTitle', () => {
 
 describe('block operations integration', () => {
   let tmpDir;
+  let docsDir;
   let tmpApp;
 
   beforeAll(async () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-block-'));
+    docsDir = path.join(tmpDir, 'docs');
+    await mkdir(docsDir);
     await copyFile(
       path.join(fixturesDir, 'test.html'),
-      path.join(tmpDir, 'test.html')
+      path.join(docsDir, 'test.html')
     );
-    tmpApp = createApp(tmpDir);
+    tmpApp = createApp(docsDir);
   });
 
   test('data-galley-block attributes survive save round-trip', async () => {

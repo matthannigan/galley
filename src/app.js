@@ -10,7 +10,7 @@ export default function createApp(docsDir, options = {}) {
   const resolvedDocsDir = path.resolve(docsDir);
   const resolvedBackupDir = options.backupDir
     ? path.resolve(options.backupDir)
-    : path.join(resolvedDocsDir, '.galley-backups');
+    : path.join(resolvedDocsDir, '..', 'backups');
 
   function validateFilename(filename) {
     if (!filename.endsWith('.html')) {

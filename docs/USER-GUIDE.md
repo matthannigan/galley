@@ -7,17 +7,17 @@ Galley is a lightweight, self-hosted HTML document editor. It serves HTML files 
 Start the server and point it at a directory of HTML files:
 
 ```bash
-# Default: serves files from ./mount on port 3000
+# Default: serves files from ./data/docs on port 3000
 npm start
 
 # Custom directory and port
 GALLEY_DOCS_DIR=/path/to/docs PORT=8080 npm start
 
-# Docker
-docker run -p 3000:3000 -v /path/to/docs:/docs galley
+# Docker (mount a data directory — subdirectories are created automatically)
+docker run -p 3000:3000 -v /path/to/data:/data galley
 ```
 
-Open `http://localhost:3000` in your browser to see the file picker.
+The docs directory and a sample document are created automatically on first run. Place additional `.html` files in `data/docs/` (or your custom directory) and open `http://localhost:3000` in your browser.
 
 ## Landing Page
 
@@ -140,7 +140,7 @@ Use your browser's print function (`Ctrl+P` / `Cmd+P`) from the editing view. Al
 
 ## Backups
 
-Every save and overwriting upload creates a timestamped backup in `.galley-backups/` inside the documents directory (configurable via `GALLEY_BACKUP_DIR`). Backup filenames follow the pattern `document.YYYY-MM-DDTHH-MM-SS.html`.
+Every save and overwriting upload creates a timestamped backup in the `backups/` sibling directory (next to `docs/`). This is configurable via `GALLEY_BACKUP_DIR`. Backup filenames follow the pattern `document.YYYY-MM-DDTHH-MM-SS.html`.
 
 ## For Document Authors
 

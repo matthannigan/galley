@@ -1,16 +1,32 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { readdir, copyFile, mkdir } from 'fs/promises';
 import createApp from './app.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = process.env.PORT || 3000;
-const docsDir = path.resolve(process.env.GALLEY_DOCS_DIR || './mount');
+const docsDir = path.resolve(process.env.GALLEY_DOCS_DIR || './data/docs');
 const backupDir = process.env.GALLEY_BACKUP_DIR
   ? path.resolve(process.env.GALLEY_BACKUP_DIR)
   : undefined;
+
+// Ensure docs directory exists and seed with sample if empty
+await mkdir(docsDir, { recursive: true });
+const existing = await readdir(docsDir);
+if (existing.length === 0) {
+  const sampleSrc = path.join(__dirname, '..', 'docs', 'sample.html');
+  try {
+    await copyFile(sampleSrc, path.join(docsDir, 'sample.html'));
+    console.log('Seeded docs directory with sample.html');
+  } catch {
+    // sample.html not found (e.g. Docker image) — skip silently
+  }
+}
 
 const app = createApp(docsDir, { backupDir });
 
 app.listen(port, () => {
   console.log(`Galley listening on http://localhost:${port}`);
   console.log(`Serving documents from ${docsDir}`);
-  console.log(`Backups stored in ${backupDir || path.join(docsDir, '.galley-backups')}`);
+  console.log(`Backups stored in ${backupDir || path.join(docsDir, '..', 'backups')}`);
 });

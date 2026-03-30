@@ -2,11 +2,9 @@ services:
   galley:
     build: .
     ports:
-      - "${HOST_PORT:-3000}:3000"
+      - "${PORT:-3000}:3000"
     volumes:
-      - ${HOST_MOUNT_PATH:-./mount}:/docs
-    environment:
-      - GALLEY_DOCS_DIR=/docs
+      - ${GALLEY_DATA:-./data}:/data
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
       interval: 30s

@@ -2,6 +2,20 @@
 
 Reverse-chronological list of technical findings and gotchas from implementation.
 
+## 2026-03-30 — Docker data directory and permissions
+
+### Non-root container users can't write to host-mounted volumes
+The Dockerfile creates a `galley` user for security, but Docker bind mounts preserve host ownership (typically root or the host user). The `galley` user inside the container can read the mounted files but can't create directories or write files. This caused `EACCES: permission denied, mkdir '/docs/.galley-backups'` on first save.
+
+### Entrypoint script pattern for writable volumes
+The standard Docker pattern: run the entrypoint as root to create subdirectories and `chown` them to the app user, then drop privileges with `su-exec` (Alpine) or `gosu` (Debian). This avoids requiring the host user to pre-create directories with specific ownership.
+
+### Unified data directory simplifies volume management
+Rather than mounting separate volumes for docs, backups, and config, a single `/data` mount with subdirectories (`docs/`, `backups/`, `config/`) is easier for users. The entrypoint creates missing subdirectories automatically. This also harmonizes local dev (`./data/docs`) with the container layout (`/data/docs`).
+
+### Backup directory as sibling avoids write permission issues
+Placing backups in a sibling directory (`../backups` relative to docs) rather than inside the docs directory (`.galley-backups/`) means the backup dir can have different ownership/permissions than the docs. In Docker, the entrypoint `chown`s both to the app user. Locally, both are under `data/` which the developer owns.
+
 ## 2026-03-30 — Phase 5a (Landing Page Refresh)
 
 ### HTML entities in `<title>` tags cause double-encoding

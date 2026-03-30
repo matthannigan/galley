@@ -13,28 +13,37 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Place `.html` files in the `mount/` directory (create it if needed). Open the browser to see the landing page — a card grid with thumbnail previews of your documents, sorted by most recently modified. Click a card to edit, and press Save or Ctrl+S to write changes back to disk. Select text to reveal a floating toolbar for bold, italic, and link formatting. Mark containers with `data-galley-block` to enable drag-and-drop reordering, duplication, and removal. Upload one or more files directly from the landing page. A sample document is available at `docs/sample.html`.
+Place `.html` files in `data/docs/`. Open the browser to see the landing page — a card grid with thumbnail previews of your documents, sorted by most recently modified. Click a card to edit, and press Save or Ctrl+S to write changes back to disk. Select text to reveal a floating toolbar for bold, italic, and link formatting. Mark containers with `data-galley-block` to enable drag-and-drop reordering, duplication, and removal. Upload one or more files directly from the landing page. A sample document is automatically seeded into the docs directory on first run.
 
 ## Docker
 
 ```bash
 docker build -t galley .
-docker run -p 3000:3000 -v /path/to/your/html/files:/docs galley
+docker run -p 3000:3000 -v /path/to/data:/data galley
 ```
 
-Or with Docker Compose:
+Or with Docker Compose (uses `./data` by default):
 
 ```bash
 docker compose up
 ```
 
+To use a different data directory:
+
+```bash
+GALLEY_DATA=/path/to/data docker compose up
+```
+
+The container automatically creates `docs/`, `backups/`, and `config/` subdirectories inside the mounted data directory.
+
 ## Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|
+| `GALLEY_DATA` | `./data` | Path to data directory — must exist before starting (Docker Compose only) |
 | `PORT` | `3000` | Server listen port |
-| `GALLEY_DOCS_DIR` | `./mount` (local) / `/docs` (container) | Directory containing HTML documents |
-| `GALLEY_BACKUP_DIR` | `.galley-backups/` inside docs dir | Directory for timestamped backups |
+| `GALLEY_DOCS_DIR` | `$GALLEY_DATA/docs` | Directory containing HTML documents |
+| `GALLEY_BACKUP_DIR` | `$GALLEY_DATA/backups` | Directory for timestamped backups |
 
 ## Documentation
 

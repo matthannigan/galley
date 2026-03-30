@@ -1,4 +1,3 @@
 node_modules/
-.galley-backups/
-mount/
+data/
 .DS_Store
