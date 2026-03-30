@@ -136,6 +136,17 @@ The landing page has an upload card that accepts one or more `.html` files. When
 
 Each file in the file picker has a Download link that serves the raw HTML file as a browser download. This is the clean source file — no editing scripts or styles are included.
 
+## Help Panel
+
+Click the `?` button in the bottom-left corner of the editing view to open a quick-reference panel. It includes:
+
+- **Keyboard shortcuts** — Save, bold, italic, link, paste, undo
+- **Editing** — what's editable and what's protected
+- **Block controls** — move, duplicate, and remove
+- **Saving** — backup and conflict behavior
+
+The panel dismisses on click-outside or Escape. It is hidden in print output.
+
 ## Printing
 
 Use your browser's print function (`Ctrl+P` / `Cmd+P`) from the editing view. All Galley UI (save button, editing indicators) is automatically hidden in print output. The document prints exactly as originally designed.

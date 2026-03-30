@@ -13,6 +13,9 @@
     'td', 'th', 'label', 'span', 'a'
   ];
 
+  var helpPanelVisible = false;
+  var hideHelpPanel = function () {};
+
   function isExcluded(el) {
     return el.closest('[data-no-edit]') !== null;
   }
@@ -36,6 +39,10 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
+    if (helpPanelVisible) {
+      hideHelpPanel();
+      return;
+    }
     var target = e.target.closest('[contenteditable="true"]');
     if (!target) return;
     var stack = undoSnapshots.get(target);
@@ -720,6 +727,109 @@
 
     initBlockSorting();
 
+    // --- Help button and panel ---
+    var modKey = /Mac|iPhone|iPad/.test(navigator.platform) ? '\u2318' : 'Ctrl';
+
+    var helpBtn = document.createElement('button');
+    helpBtn.setAttribute('type', 'button');
+    helpBtn.setAttribute('id', 'galley-help-btn');
+    helpBtn.setAttribute('aria-expanded', 'false');
+    helpBtn.setAttribute('aria-controls', 'galley-help-panel');
+    helpBtn.textContent = '?';
+
+    var helpPanel = document.createElement('div');
+    helpPanel.setAttribute('id', 'galley-help-panel');
+    helpPanel.setAttribute('role', 'region');
+    helpPanel.setAttribute('aria-label', 'Help');
+
+    function buildHelpSection(title, contentFn) {
+      var section = document.createElement('div');
+      section.className = 'galley-help-section';
+      var heading = document.createElement('div');
+      heading.className = 'galley-help-heading';
+      heading.textContent = title;
+      section.appendChild(heading);
+      contentFn(section);
+      return section;
+    }
+
+    // Keyboard shortcuts section
+    helpPanel.appendChild(buildHelpSection('Keyboard Shortcuts', function (sec) {
+      var grid = document.createElement('div');
+      grid.className = 'galley-help-shortcuts';
+      var shortcuts = [
+        [modKey + '+S', 'Save'],
+        [modKey + '+B', 'Bold'],
+        [modKey + '+I', 'Italic'],
+        [modKey + '+K', 'Link'],
+        [modKey + '+V', 'Paste plain text'],
+        [modKey + '+Shift+V', 'Paste with formatting'],
+        ['Escape', 'Undo / exit element'],
+        [modKey + '+Z', 'Undo keystroke']
+      ];
+      shortcuts.forEach(function (s) {
+        var kbd = document.createElement('kbd');
+        kbd.textContent = s[0];
+        var desc = document.createElement('span');
+        desc.className = 'galley-help-desc';
+        desc.textContent = s[1];
+        grid.appendChild(kbd);
+        grid.appendChild(desc);
+      });
+      sec.appendChild(grid);
+    }));
+
+    // Editing section
+    helpPanel.appendChild(buildHelpSection('Editing', function (sec) {
+      var p = document.createElement('p');
+      p.className = 'galley-help-text';
+      p.textContent = 'Click any highlighted text to make edits. Structural changes are prevented.';
+      sec.appendChild(p);
+    }));
+
+    // Block controls section
+    helpPanel.appendChild(buildHelpSection('Block Controls', function (sec) {
+      var p = document.createElement('p');
+      p.className = 'galley-help-text';
+      p.textContent = 'Hover over blocks to reveal move, duplicate, and remove functions.';
+      sec.appendChild(p);
+    }));
+
+    // Saving section
+    helpPanel.appendChild(buildHelpSection('Saving', function (sec) {
+      var p1 = document.createElement('p');
+      p1.className = 'galley-help-text';
+      p1.textContent = 'Each save creates a backup. Conflicts show a reload/force-save banner.';
+      sec.appendChild(p1);
+    }));
+
+    function showHelpPanel() {
+      helpPanelVisible = true;
+      helpBtn.setAttribute('aria-expanded', 'true');
+      helpPanel.classList.add('galley-help-visible');
+    }
+
+    hideHelpPanel = function () {
+      helpPanelVisible = false;
+      helpBtn.setAttribute('aria-expanded', 'false');
+      helpPanel.classList.remove('galley-help-visible');
+    };
+
+    helpBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (helpPanelVisible) {
+        hideHelpPanel();
+      } else {
+        showHelpPanel();
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!helpPanelVisible) return;
+      if (e.target.closest('#galley-help-panel') || e.target.closest('#galley-help-btn')) return;
+      hideHelpPanel();
+    });
+
     if (container) {
       container.appendChild(saveBtn);
       container.appendChild(downloadBtn);
@@ -727,6 +837,8 @@
       container.appendChild(toolbar);
       container.appendChild(blockControls);
       container.appendChild(bannerEl);
+      container.appendChild(helpBtn);
+      container.appendChild(helpPanel);
     } else {
       document.body.appendChild(saveBtn);
       document.body.appendChild(downloadBtn);
@@ -734,6 +846,8 @@
       document.body.appendChild(toolbar);
       document.body.appendChild(blockControls);
       document.body.appendChild(bannerEl);
+      document.body.appendChild(helpBtn);
+      document.body.appendChild(helpPanel);
     }
 
     // --- Toolbar positioning and visibility ---

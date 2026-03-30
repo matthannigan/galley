@@ -49,6 +49,7 @@ export default [
         JSON: 'readonly',
         Map: 'readonly',
         Sortable: 'readonly',
+        navigator: 'readonly',
       },
     },
   },

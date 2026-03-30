@@ -58,7 +58,9 @@ Phases 1–4 built a capable editing environment. Phase 5 shifts focus from func
 
 Redesigned the index page with a sidebar + card gallery layout. Sidebar provides onboarding content (what Galley is, how editing works, backup/conflict info). Card grid shows thumbnail previews via iframe (`GET /preview/:filename` — raw HTML without editing injection), document titles extracted from `<title>` tags, filenames, and last-modified dates. Documents sorted by most recently modified. Upload card supports multi-file upload with page reload (no redirect to editor). Responsive layout collapses to single column on narrow screens. Typography uses Google Fonts (Fraunces, Outfit, JetBrains Mono).
 
-### 5b. Editor Help Panel
+### 5b. Editor Help Panel ✓
+
+*Completed 2026-03-30*
 
 A floating `?` button in a fixed corner of the editing view (mirroring the save button's placement pattern). On hover or click, it reveals a compact panel containing:
 
@@ -101,7 +103,7 @@ Phase 3a: Formatting ✓
 Phase 3b: Paste ✓
 
 Phase 5a: Landing Page Refresh ✓
-Phase 5b: Editor Help Panel
+Phase 5b: Editor Help Panel ✓
 Phase 5c: Guided Tour — Superseded by sample.html user guide
 ```
 

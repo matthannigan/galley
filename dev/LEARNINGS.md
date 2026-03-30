@@ -2,6 +2,14 @@
 
 Reverse-chronological list of technical findings and gotchas from implementation.
 
+## 2026-03-30 — Phase 5b (Editor Help Panel)
+
+### Help panel headings must avoid semantic heading elements
+The help panel originally used `<h3>` for section headings. JSDOM tests query `document.querySelectorAll('h1, h2, h3, h4, h5, h6')` to verify contenteditable activation — the help panel headings matched this query but weren't editable, causing test failures. Fix: use `<div class="galley-help-heading">` instead. UI labels in injected chrome should never use semantic elements that overlap with document content selectors.
+
+### `navigator` needs explicit ESLint global for client script
+The client ESLint config uses an explicit globals allowlist (no `browser` environment). Adding `navigator.platform` for Mac/Windows shortcut detection required adding `navigator` to the client's ESLint globals in `eslint.config.js`.
+
 ## 2026-03-30 — Docker data directory and permissions
 
 ### Non-root container users can't write to host-mounted volumes

@@ -199,6 +199,26 @@ The `GET /` handler in `src/app.js` reads each `.html` file to extract its title
 
 **Multi-file upload:** The upload card's file input has the `multiple` attribute. The client-side script iterates over selected files, uploads each sequentially via `POST /upload`, then reloads the page. The server-side `/upload` endpoint is unchanged (handles one file per request).
 
+## Help Panel
+
+A `?` button (`#galley-help-btn`) is fixed at `bottom: 1.5rem; left: 1.5rem` — mirroring the save button's position on the opposite side. Clicking it toggles a panel (`#galley-help-panel`) with keyboard shortcuts, editing rules, block controls, and save behavior.
+
+### Show/Hide
+
+The button uses `aria-expanded` and `aria-controls` for accessibility. A module-level `helpPanelVisible` boolean tracks state. The panel uses a `.galley-help-visible` class (same pattern as other overlays).
+
+### Escape Key Integration
+
+The Escape handler at IIFE scope checks `helpPanelVisible` before the existing undo logic. When the panel is open, Escape closes it and returns early — undo is not triggered. When the panel is closed, Escape falls through to the undo behavior as before.
+
+### Click-Outside Dismissal
+
+A document-level `click` listener checks whether the click target is inside the panel or button. If neither, it calls `hideHelpPanel()`. The button's own click handler calls `e.stopPropagation()` to prevent the toggle from being immediately undone.
+
+### Platform-Aware Shortcuts
+
+Keyboard shortcuts display `⌘` on Mac/iOS and `Ctrl` elsewhere, detected once via `navigator.platform` at DOMContentLoaded time.
+
 ## Download Button (Hidden)
 
 The editing view creates a download `<a>` element (`#galley-download`) in the DOM on every page load, but it is hidden via `display: none` in `src/galley-styles.css`. The `/download/:filename` route and file picker download links remain fully functional.
