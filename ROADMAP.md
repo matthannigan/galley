@@ -58,8 +58,6 @@ Phases 1–4 built a capable editing environment. Phase 5 shifts focus from func
 
 Redesigned the index page with a sidebar + card gallery layout. Sidebar provides onboarding content (what Galley is, how editing works, backup/conflict info). Card grid shows thumbnail previews via iframe (`GET /preview/:filename` — raw HTML without editing injection), document titles extracted from `<title>` tags, filenames, and last-modified dates. Documents sorted by most recently modified. Upload card supports multi-file upload with page reload (no redirect to editor). Responsive layout collapses to single column on narrow screens. Typography uses Google Fonts (Fraunces, Outfit, JetBrains Mono).
 
-**Note:** The sidebar includes a "Take a guided tour" link, currently hidden (`display: none`) until the guided tour feature (5c) is implemented.
-
 ### 5b. Editor Help Panel
 
 A floating `?` button in a fixed corner of the editing view (mirroring the save button's placement pattern). On hover or click, it reveals a compact panel containing:
@@ -74,34 +72,15 @@ A floating `?` button in a fixed corner of the editing view (mirroring the save 
 - Hidden in print output (consistent with all Galley UI)
 - Panel dismisses on click-outside or Escape
 - Does not interfere with editing interactions (no overlay that blocks contenteditable)
-- "Take a tour" link at the bottom (launches 5c when available; hidden until 5c is built)
+Standalone — establishes the `?` button as the home for help features.
 
-Standalone — establishes the `?` button as the home for help features. The tour link becomes active once 5c is implemented.
+### 5c. Guided Tour — Superseded
 
-### 5c. Guided Tour
+*Superseded by sample document improvements (2026-03-30)*
 
-A lightweight, custom-built walkthrough for first-time users. Highlights key interface elements one at a time with a tooltip and navigation controls (next, back, dismiss). No external library — vanilla JS, consistent with Galley's zero-dependency client approach.
+The original plan called for a spotlight-and-tooltip walkthrough built in vanilla JS. This was superseded by transforming `sample.html` into a self-demonstrating user guide — "Getting Started with Galley" — that covers the same content (editing, saving, formatting, paste, undo, block operations, keyboard shortcuts) with embedded screenshots and interactive "Try it" prompts. Users learn features by using them on real content rather than through a synthetic overlay.
 
-**Tour stops (approximately 5–6):**
-1. An editable element — click to edit, blue outline on hover
-2. The save button — save with click or Ctrl+S, orange dot means unsaved changes
-3. Text formatting — select text to reveal the toolbar (trigger a demo selection)
-4. Block controls — hover over a `data-galley-block` to reveal move/duplicate/remove
-5. Paste behavior — Ctrl+V for plain, Ctrl+Shift+V for formatted
-6. The help button — find shortcuts and reference info anytime
-
-**First-visit detection:**
-- `localStorage` flag set on tour completion or dismissal
-- Tour is also manually launchable from the help panel (5b) at any time
-
-**Design constraints:**
-- Spotlight/highlight effect on the active element with a tooltip alongside
-- Dims or overlays the rest of the page without preventing scroll
-- Keyboard navigable (arrow keys or Enter to advance, Escape to dismiss)
-- Hidden in print output
-- No saved state on the server — tour progress is entirely client-side
-
-Depends on 5b (tour launch point lives in the help panel).
+The sample document approach has advantages over an interactive tour: it serves as a permanent reference, prints cleanly to PDF, requires no additional client-side code, and is discoverable from the landing page card grid.
 
 ---
 
@@ -123,7 +102,7 @@ Phase 3b: Paste ✓
 
 Phase 5a: Landing Page Refresh ✓
 Phase 5b: Editor Help Panel
-    └── Phase 5c: Guided Tour
+Phase 5c: Guided Tour — Superseded by sample.html user guide
 ```
 
 ---
@@ -149,3 +128,7 @@ Username/password or shared passphrase for access control. Currently handled at 
 ### Change Attribution and History
 
 Track which user made which edits, with a visual timeline or diff viewer. Requires authentication (to identify users) and either a richer backup format or a separate change log. Significant complexity increase over the current timestamped-backup approach.
+
+### Static Asset Serving
+
+Serve non-HTML files (images, CSS, fonts) from the docs directory alongside documents. Currently Galley only serves `.html` files — any `<img>` in a document must reference an external URL or use an inline data URI. Adding static asset serving would let authors place images in the docs directory and reference them with relative paths, keeping documents and their assets co-located and self-hosted. Scope is small (a static file middleware on the docs directory) but introduces considerations around allowed file types, path traversal on new extensions, and cache headers.

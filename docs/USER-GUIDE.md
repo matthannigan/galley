@@ -2,6 +2,8 @@
 
 Galley is a lightweight, self-hosted HTML document editor. It serves HTML files from a directory, injects inline editing capabilities, and writes changes back to disk. The file on disk is always the single source of truth.
 
+> **New to Galley?** The sample document ("Getting Started with Galley") that ships with every installation is an interactive version of this guide — with screenshots, keyboard shortcut tables, and "Try it" prompts you can use while editing. Open it from the landing page to learn by doing.
+
 ## Getting Started
 
 Start the server and point it at a directory of HTML files:

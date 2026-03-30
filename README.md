@@ -13,7 +13,9 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Place `.html` files in `data/docs/`. Open the browser to see the landing page — a card grid with thumbnail previews of your documents, sorted by most recently modified. Click a card to edit, and press Save or Ctrl+S to write changes back to disk. Select text to reveal a floating toolbar for bold, italic, and link formatting. Mark containers with `data-galley-block` to enable drag-and-drop reordering, duplication, and removal. Upload one or more files directly from the landing page. A sample document is automatically seeded into the docs directory on first run.
+Place `.html` files in `data/docs/`. Open the browser to see the landing page — a card grid with thumbnail previews of your documents, sorted by most recently modified. Click a card to edit, and press Save or Ctrl+S to write changes back to disk. Select text to reveal a floating toolbar for bold, italic, and link formatting. Mark containers with `data-galley-block` to enable drag-and-drop reordering, duplication, and removal. Upload one or more files directly from the landing page.
+
+A "Getting Started with Galley" document is automatically seeded on first run. It's an interactive guide — with screenshots, keyboard shortcuts, and "Try it" prompts — that teaches you features by letting you use them.
 
 ## Docker
 
