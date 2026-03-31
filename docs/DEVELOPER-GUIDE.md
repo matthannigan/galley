@@ -224,3 +224,39 @@ Keyboard shortcuts display `⌘` on Mac/iOS and `Ctrl` elsewhere, detected once 
 The editing view creates a download `<a>` element (`#galley-download`) in the DOM on every page load, but it is hidden via `display: none` in `src/galley-styles.css`. The `/download/:filename` route and file picker download links remain fully functional.
 
 To re-enable the button in the editing view, change `display: none` to `display: inline-block` in the `#galley-download` CSS rule.
+
+## Security Model
+
+Galley has no built-in authentication. Access control is the deployer's responsibility at the network layer (reverse proxy, VPN, Cloudflare Tunnel, etc.). The application's security measures assume all requests come from authenticated, semi-trusted users.
+
+### Server-Side Protections
+
+**Path traversal prevention** (`src/app.js`, `validateFilename()`): All `:filename` route parameters are validated — must end in `.html`, must not contain `..`, `/`, or `\`, and the resolved path must stay within the configured docs directory. This is defense-in-depth: the filename check catches obvious attacks, and the resolved-path check catches encoding tricks.
+
+**Security headers** (`src/app.js`, middleware): All responses include `X-Content-Type-Options: nosniff` (prevents MIME-sniffing), `X-Frame-Options: SAMEORIGIN` (allows iframe embedding only from the same origin — needed for landing page previews), and `Referrer-Policy: no-referrer` (prevents document filenames from leaking via the Referer header to external links).
+
+**Preview route CSP** (`src/app.js`, `GET /preview/:filename`): The preview route adds `Content-Security-Policy: script-src 'none'`, which blocks all script execution. This is defense-in-depth — if a document somehow contains a `<script>` tag (via direct file edit, API upload, or a sanitization bypass), previews won't execute it. The edit route cannot use this CSP because the injected editor requires inline scripts.
+
+**Error message hardening** (`src/app.js`, `POST /save`, `POST /upload`): 500 error responses return generic messages (`"Save failed"`, `"Upload failed"`) instead of raw `err.message`, which could leak filesystem paths or OS details. Full errors are logged server-side via `console.error`.
+
+**Backup retention** (`src/app.js`, `atomicWriteWithBackup()`): After creating a backup, old backups for the same document are pruned if they exceed the `maxBackups` limit (default 20, configurable via `GALLEY_MAX_BACKUPS` env var, 0 = unlimited). Pruning is sorted alphabetically (which matches chronologically due to the ISO 8601 timestamp format), keeping the most recent backups.
+
+**CSRF mitigation**: POST endpoints require `Content-Type: application/json`. Browsers enforce CORS preflight on cross-origin requests with non-simple content types, and Galley sets no `Access-Control-Allow-Origin` header, so cross-origin requests are blocked. No explicit CSRF tokens are needed.
+
+**Content-Disposition encoding** (`src/app.js`, `GET /download/:filename`): The filename in the `Content-Disposition` header is quote-escaped to prevent header injection via filenames containing double quotes.
+
+### Client-Side Protections
+
+**Paste sanitization** (`src/galley-client.js`, `sanitizeNode()`): A whitelist-based HTML sanitizer that recursively walks the DOM tree and emits only `<strong>`, `<em>`, and `<a>` tags. Link `href` values must match `http:`, `https:`, or `mailto:` schemes — `javascript:` and `data:` URLs are stripped. Attribute values are entity-escaped via `escapeAttr()`.
+
+**Link URL validation** (`src/galley-client.js`, `handleLinkCommand()`): The Ctrl+K link creation prompt validates the URL against the same `/^(https?:|mailto:)/i` regex used by the paste sanitizer. Non-matching URLs (including `javascript:`) are silently rejected.
+
+**DOM safety**: All user-facing text (toast messages, banner content, button labels) is set via `.textContent`, never `.innerHTML`. The only `.innerHTML` writes are undo snapshot restoration (internal state, not external input) and static SVG icon literals.
+
+**Extension artifact cleanup** (`src/galley-client.js`, `removeExtensionElements()`, `restoreHtmlAttributes()`, `restoreBodyAttributes()`): Before serialization, the save flow removes custom elements (detected by hyphenated tag names, e.g., Grammarly's `<grammarly-extension>`), restores original `<html>` and `<body>` attributes, and strips all Galley-injected classes and attributes.
+
+### What Is NOT Protected
+
+- **Stored HTML content**: Documents are HTML files that can contain arbitrary markup, including `<script>` tags. Galley does not sanitize document content on save — it preserves whatever the document contains. The preview CSP mitigates script execution in that route, but the edit route (which injects the editor) serves documents with their full content.
+- **File access within the docs directory**: Any `.html` file in the docs directory is accessible to any user who can reach the server. There is no per-file or per-user access control.
+- **Rate limiting**: There is no request rate limiting. This is acceptable behind a network-layer gateway (Cloudflare, nginx) that can enforce rate limits, but the application itself will accept unlimited requests.

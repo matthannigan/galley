@@ -473,7 +473,7 @@
       }
     }
     var url = prompt('URL:', 'https://');
-    if (url) {
+    if (url && /^(https?:|mailto:)/i.test(url)) {
       document.execCommand('createLink', false, url);
     }
   }

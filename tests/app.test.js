@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'url';
 import path from 'path';
 import os from 'os';
-import { mkdtemp, readFile, readdir, copyFile, mkdir } from 'fs/promises';
+import { mkdtemp, readFile, readdir, copyFile, mkdir, writeFile } from 'fs/promises';
 import request from 'supertest';
 import createApp from '../src/app.js';
 import { extractTitle } from '../src/index-page.js';
@@ -652,5 +652,91 @@ describe('block operations integration', () => {
     const galleyBlock = res.text.substring(galleyStart, galleyEnd);
     const scriptCount = (galleyBlock.match(/<script>/g) || []).length;
     expect(scriptCount).toBe(2);
+  });
+});
+
+describe('security headers', () => {
+  test('all routes include X-Content-Type-Options', async () => {
+    const res = await request(app).get('/health');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  test('all routes include X-Frame-Options', async () => {
+    const res = await request(app).get('/health');
+    expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
+  });
+
+  test('all routes include Referrer-Policy', async () => {
+    const res = await request(app).get('/health');
+    expect(res.headers['referrer-policy']).toBe('no-referrer');
+  });
+
+  test('preview route includes Content-Security-Policy blocking scripts', async () => {
+    const res = await request(app).get('/preview/test.html');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-security-policy']).toBe("script-src 'none'");
+  });
+
+  test('edit route does not include script-blocking CSP', async () => {
+    const res = await request(app).get('/edit/test.html');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-security-policy']).toBeUndefined();
+  });
+});
+
+describe('backup retention', () => {
+  test('prunes old backups beyond maxBackups limit', async () => {
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-prune-'));
+    const tmpDocsDir = path.join(tmpDir, 'docs');
+    const tmpBackupDir = path.join(tmpDir, 'backups');
+    await mkdir(tmpDocsDir, { recursive: true });
+    await mkdir(tmpBackupDir, { recursive: true });
+    await copyFile(path.join(fixturesDir, 'test.html'), path.join(tmpDocsDir, 'test.html'));
+
+    // Pre-seed 4 old backups with distinct timestamps
+    for (let i = 0; i < 4; i++) {
+      await writeFile(
+        path.join(tmpBackupDir, `test.2026-01-0${i + 1}T00-00-00.html`),
+        `<html><body>old ${i}</body></html>`
+      );
+    }
+
+    const pruneApp = createApp(tmpDocsDir, { backupDir: tmpBackupDir, maxBackups: 3 });
+    // This save creates a 5th backup, then prunes to 3
+    await request(pruneApp)
+      .post('/save/test.html')
+      .send({ html: '<!DOCTYPE html><html><body><p>New</p></body></html>' })
+      .expect(200);
+
+    const backups = await readdir(tmpBackupDir);
+    const testBackups = backups.filter(f => f.startsWith('test.'));
+    expect(testBackups.length).toBe(3);
+  });
+
+  test('maxBackups 0 keeps all backups', async () => {
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-noprune-'));
+    const tmpDocsDir = path.join(tmpDir, 'docs');
+    const tmpBackupDir = path.join(tmpDir, 'backups');
+    await mkdir(tmpDocsDir, { recursive: true });
+    await mkdir(tmpBackupDir, { recursive: true });
+    await copyFile(path.join(fixturesDir, 'test.html'), path.join(tmpDocsDir, 'test.html'));
+
+    // Pre-seed 4 old backups
+    for (let i = 0; i < 4; i++) {
+      await writeFile(
+        path.join(tmpBackupDir, `test.2026-01-0${i + 1}T00-00-00.html`),
+        `<html><body>old ${i}</body></html>`
+      );
+    }
+
+    const noLimitApp = createApp(tmpDocsDir, { backupDir: tmpBackupDir, maxBackups: 0 });
+    await request(noLimitApp)
+      .post('/save/test.html')
+      .send({ html: '<!DOCTYPE html><html><body><p>New</p></body></html>' })
+      .expect(200);
+
+    const backups = await readdir(tmpBackupDir);
+    const testBackups = backups.filter(f => f.startsWith('test.'));
+    expect(testBackups.length).toBe(5);
   });
 });

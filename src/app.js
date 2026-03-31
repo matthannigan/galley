@@ -1,16 +1,26 @@
 import express from 'express';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { readFile, readdir, stat, access, writeFile, rename, mkdir, copyFile, unlink } from 'fs/promises';
 import { injectEditing } from './injector.js';
 import { renderIndexPage, extractTitle } from './index-page.js';
 
 export default function createApp(docsDir, options = {}) {
   const app = express();
+  app.use((req, res, next) => {
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('X-Frame-Options', 'SAMEORIGIN');
+    res.set('Referrer-Policy', 'no-referrer');
+    next();
+  });
   app.use(express.json({ limit: '5mb' }));
   const resolvedDocsDir = path.resolve(docsDir);
   const resolvedBackupDir = options.backupDir
     ? path.resolve(options.backupDir)
     : path.join(resolvedDocsDir, '..', 'backups');
+  const maxBackups = options.maxBackups ?? 20;
 
   function validateFilename(filename) {
     if (!filename.endsWith('.html')) {
@@ -41,6 +51,18 @@ export default function createApp(docsDir, options = {}) {
       const baseName = path.basename(filePath, '.html');
       const backupName = `${baseName}.${timestamp}.html`;
       await copyFile(filePath, path.join(resolvedBackupDir, backupName));
+
+      // Prune old backups for this document
+      if (maxBackups > 0) {
+        const allFiles = await readdir(resolvedBackupDir);
+        const prefix = baseName + '.';
+        const backups = allFiles.filter(f => f.startsWith(prefix) && f.endsWith('.html')).sort();
+        if (backups.length > maxBackups) {
+          for (const old of backups.slice(0, backups.length - maxBackups)) {
+            try { await unlink(path.join(resolvedBackupDir, old)); } catch { /* best-effort */ }
+          }
+        }
+      }
     }
 
     const tempPath = filePath + '.tmp.' + Date.now();
@@ -73,6 +95,14 @@ export default function createApp(docsDir, options = {}) {
 
     htmlFiles.sort((a, b) => b.modified - a.modified);
     res.type('html').send(renderIndexPage(htmlFiles));
+  });
+
+  app.get('/favicon.svg', (req, res) => {
+    res.type('image/svg+xml').sendFile(path.join(__dirname, 'favicon.svg'));
+  });
+
+  app.get('/favicon.ico', (req, res) => {
+    res.redirect(301, '/favicon.svg');
   });
 
   app.get('/status/:filename', async (req, res) => {
@@ -122,7 +152,7 @@ export default function createApp(docsDir, options = {}) {
     }
 
     const html = await readFile(result.filePath, 'utf-8');
-    res.set('Content-Disposition', `attachment; filename="${filename}"`);
+    res.set('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '\\"')}"`);
     res.type('html').send(html);
   });
 
@@ -138,6 +168,7 @@ export default function createApp(docsDir, options = {}) {
     }
 
     const html = await readFile(result.filePath, 'utf-8');
+    res.set('Content-Security-Policy', "script-src 'none'");
     res.type('html').send(html);
   });
 
@@ -168,7 +199,8 @@ export default function createApp(docsDir, options = {}) {
       res.json({ ok: true, version: newStat.mtime.toISOString() });
     } catch (err) {
       if (err.statusCode === 404) return res.status(404).json({ error: 'File not found' });
-      res.status(500).json({ error: 'Save failed: ' + err.message });
+      console.error('Save error:', err);
+      res.status(500).json({ error: 'Save failed' });
     }
   });
 
@@ -189,7 +221,8 @@ export default function createApp(docsDir, options = {}) {
       await atomicWriteWithBackup(result.filePath, req.body.html, { requireExists: false });
       res.json({ ok: true });
     } catch (err) {
-      res.status(500).json({ error: 'Upload failed: ' + err.message });
+      console.error('Upload error:', err);
+      res.status(500).json({ error: 'Upload failed' });
     }
   });
 

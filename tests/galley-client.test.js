@@ -346,6 +346,30 @@ describe('formatting keyboard shortcuts', () => {
     window.prompt = origPrompt;
     expect(execCalls.some(c => c.cmd === 'createLink')).toBe(false);
   });
+
+  test('Ctrl+K rejects javascript: URI', () => {
+    setupDom('<p>Hello</p>');
+    var origPrompt = window.prompt;
+    window.prompt = function () { return 'javascript:alert(1)'; };
+    var p = document.querySelector('p');
+    p.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'k', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+    window.prompt = origPrompt;
+    expect(execCalls.some(c => c.cmd === 'createLink')).toBe(false);
+  });
+
+  test('Ctrl+K rejects data: URI', () => {
+    setupDom('<p>Hello</p>');
+    var origPrompt = window.prompt;
+    window.prompt = function () { return 'data:text/html,<script>alert(1)</script>'; };
+    var p = document.querySelector('p');
+    p.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'k', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+    window.prompt = origPrompt;
+    expect(execCalls.some(c => c.cmd === 'createLink')).toBe(false);
+  });
 });
 
 describe('paste handling', () => {

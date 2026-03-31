@@ -155,6 +155,30 @@ Use your browser's print function (`Ctrl+P` / `Cmd+P`) from the editing view. Al
 
 Every save and overwriting upload creates a timestamped backup in the `backups/` sibling directory (next to `docs/`). This is configurable via `GALLEY_BACKUP_DIR`. Backup filenames follow the pattern `document.YYYY-MM-DDTHH-MM-SS.html`.
 
+By default, Galley keeps the 20 most recent backups per document and prunes older ones automatically. Set `GALLEY_MAX_BACKUPS=0` to keep all backups (no pruning), or set a different number to adjust the limit.
+
+## Security and Access Control
+
+Galley has **no built-in authentication or login system**. If you can reach the server, you can read and edit documents. This is by design — access control is handled at the network layer, outside of Galley.
+
+**Before making Galley accessible beyond your local machine**, you must set up access restrictions using one of these approaches:
+
+- **Cloudflare Tunnel / Gateway** — zero-trust access with identity-based policies
+- **Reverse proxy with authentication** — nginx, Caddy, or Traefik with OAuth2 Proxy, HTTP Basic Auth, or client certificates
+- **VPN or firewall** — restrict access to a trusted network
+
+Without this, anyone who discovers the URL can view, edit, and upload documents.
+
+### What Galley Protects Against
+
+Even within an authenticated session, Galley enforces several safety measures:
+
+- **Paste sanitization** — pasted HTML is stripped to plain text by default. Rich paste (Ctrl+Shift+V) allows only bold, italic, and links with `http:`/`https:`/`mailto:` URLs. `javascript:` links are rejected.
+- **Link URL validation** — the link toolbar (Ctrl+K) only accepts `http:`, `https:`, and `mailto:` URLs.
+- **File restrictions** — only `.html` files can be served, saved, or uploaded. Path traversal attempts are blocked.
+- **Save conflicts** — if two people edit the same document, the second saver is warned and given the choice to reload or force-save.
+- **Automatic backups** — every save creates a timestamped backup before overwriting, so content is never permanently lost.
+
 ## For Document Authors
 
 Galley is designed so one person owns the document structure (HTML/CSS) and others edit text through the browser. A few things to keep in mind:

@@ -2,6 +2,32 @@
 
 Reverse-chronological list of technical findings and gotchas from implementation.
 
+## 2026-03-31 — Security Audit
+
+### Paste sanitizer and link toolbar had divergent URL validation
+The paste sanitizer (`sanitizeNode()`) correctly validated link URLs against `/^(https?:|mailto:)/i`, rejecting `javascript:` and `data:` schemes. But `handleLinkCommand()` (Ctrl+K) passed the `prompt()` result directly to `execCommand('createLink')` with no validation. This was a stored XSS vector — a `javascript:` link entered via the toolbar gets saved into the document and executes for anyone who opens it via `/preview`. Fix: apply the same regex check in both paths. Lesson: when the same kind of input (a URL) enters through multiple paths, validation must be applied at each entry point, not just one.
+
+### `Content-Security-Policy: script-src 'none'` on preview route is effective defense-in-depth
+The `/preview` route serves raw document HTML (no editor injection) for iframe thumbnails on the landing page. Adding `script-src 'none'` blocks all script execution in previews, which neutralizes stored XSS payloads even if sanitization has gaps. This CSP can't be applied to the `/edit` route because the injected editor uses inline `<script>` tags. A nonce-based CSP for the edit route would require changes to the injector — possible but higher complexity for lower benefit since the editor already controls the page.
+
+### JSON content-type requirement is sufficient CSRF protection for this architecture
+Express 5 rejects POST bodies that don't match the declared content type. Since all POST endpoints use `express.json()`, they require `Content-Type: application/json`. Browsers enforce CORS preflight on cross-origin requests with non-simple content types (`application/json` is non-simple), and Galley sets no `Access-Control-Allow-Origin` header. This means cross-origin `fetch` with JSON is blocked by the browser's preflight check, and HTML forms can't send `application/json`. No CSRF tokens needed.
+
+### Security headers don't need a dependency
+Rather than adding `helmet` (which would double the production dependency count from 1 to 2), three `res.set()` calls in a middleware provide the headers Galley actually needs: `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`. `helmet` sets many headers by default that don't apply (HSTS requires HTTPS termination at the app layer, CSP is route-specific). Keeping it manual avoids unnecessary complexity and dependency risk.
+
+### `X-Frame-Options: SAMEORIGIN` not `DENY` because of iframe previews
+The landing page embeds documents in `<iframe src="/preview/...">` for thumbnail previews. `X-Frame-Options: DENY` would block these same-origin iframes. `SAMEORIGIN` allows the landing page to frame previews while still preventing external sites from embedding Galley pages.
+
+### Backup timestamp collisions in fast tests
+The backup filename uses ISO 8601 to the second (`YYYY-MM-DDTHH-MM-SS`). In tests, multiple saves can complete within the same second, producing identical backup filenames that overwrite each other. Tests that need multiple distinct backups should pre-seed backup files with different timestamps rather than relying on real saves happening in different seconds.
+
+### Error messages can leak filesystem structure
+`err.message` for Node.js filesystem errors includes the full absolute path (e.g., `EACCES: permission denied, open '/data/docs/test.html'`). Exposing this in API responses leaks the server's directory structure and OS details. Fix: return generic error messages in HTTP responses and log the full error server-side. This is a common pattern but easy to forget when the initial implementation just does `'Save failed: ' + err.message`.
+
+### Backup pruning sorts alphabetically, which matches chronologically
+Backup filenames use ISO 8601 timestamps (`test.2026-01-01T00-00-00.html`), which sort lexicographically in chronological order. This means `Array.sort()` on filtered backup filenames produces oldest-first ordering without needing to `stat()` each file for mtime. Pruning is just `backups.slice(0, count - maxBackups)` after sorting.
+
 ## 2026-03-30 — Phase 5b (Editor Help Panel)
 
 ### Help panel headings must avoid semantic heading elements

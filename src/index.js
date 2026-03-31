@@ -9,6 +9,9 @@ const docsDir = path.resolve(process.env.GALLEY_DOCS_DIR || './data/docs');
 const backupDir = process.env.GALLEY_BACKUP_DIR
   ? path.resolve(process.env.GALLEY_BACKUP_DIR)
   : undefined;
+const maxBackups = process.env.GALLEY_MAX_BACKUPS !== undefined
+  ? parseInt(process.env.GALLEY_MAX_BACKUPS, 10)
+  : undefined;
 
 // Ensure docs directory exists and seed with sample if empty
 await mkdir(docsDir, { recursive: true });
@@ -23,7 +26,7 @@ if (existing.length === 0) {
   }
 }
 
-const app = createApp(docsDir, { backupDir });
+const app = createApp(docsDir, { backupDir, maxBackups });
 
 app.listen(port, () => {
   console.log(`Galley listening on http://localhost:${port}`);

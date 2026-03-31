@@ -46,6 +46,31 @@ The container automatically creates `docs/`, `backups/`, and `config/` subdirect
 | `PORT` | `3000` | Server listen port |
 | `GALLEY_DOCS_DIR` | `$GALLEY_DATA/docs` | Directory containing HTML documents |
 | `GALLEY_BACKUP_DIR` | `$GALLEY_DATA/backups` | Directory for timestamped backups |
+| `GALLEY_MAX_BACKUPS` | `20` | Maximum backups per document (0 = unlimited) |
+
+## Security
+
+Galley has **no built-in authentication**. This is a deliberate design choice — access control is your responsibility at the network layer.
+
+**You must restrict access** before exposing Galley to any untrusted network. Recommended approaches:
+
+- **Cloudflare Tunnel / Gateway** — zero-trust access with identity-based policies (what the maintainer uses)
+- **Reverse proxy with auth** — nginx/Caddy/Traefik with OAuth2 Proxy, HTTP Basic Auth, or mutual TLS
+- **VPN / firewall** — restrict access to a trusted network segment
+
+Without network-layer access control, anyone who can reach the server can read, edit, and upload documents.
+
+Galley includes the following built-in protections:
+
+- **Path traversal prevention** — filenames are validated against directory escape, path separators, and non-`.html` extensions
+- **Security headers** — `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer` on all responses
+- **Preview CSP** — the `/preview` route sets `Content-Security-Policy: script-src 'none'` to block script execution in document previews
+- **Paste sanitization** — pasted HTML is whitelist-filtered to bold, italic, and links with `http:`/`https:`/`mailto:` URLs only
+- **Link URL validation** — the link toolbar rejects `javascript:`, `data:`, and other non-http(s) URLs
+- **Atomic writes** — saves use a temp-file-then-rename pattern to prevent partial writes
+- **Backup retention** — old backups are automatically pruned (configurable via `GALLEY_MAX_BACKUPS`)
+- **CSRF mitigation** — POST endpoints require `Content-Type: application/json`, which triggers CORS preflight on cross-origin requests
+- **Non-root Docker execution** — the container runs as a dedicated `galley` user
 
 ## Documentation
 
