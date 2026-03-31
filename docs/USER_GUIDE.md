@@ -21,6 +21,8 @@ docker run -p 3000:3000 -v /path/to/data:/data galley
 
 The docs directory and a sample document are created automatically on first run. Place additional `.html` files in `data/docs/` (or your custom directory) and open `http://localhost:3000` in your browser.
 
+**Timezone:** The landing page shows each document's last-modified time. In Docker, this defaults to UTC. To display times in your local timezone, set the `TZ` environment variable to a [tz database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) (e.g., `TZ=America/New_York`).
+
 ## Landing Page
 
 The landing page at `/` shows all `.html` files in the documents directory as a card grid with thumbnail previews. A sidebar explains what Galley is and how it works. From here you can:

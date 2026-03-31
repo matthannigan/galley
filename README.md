@@ -48,6 +48,7 @@ The container automatically creates `docs/`, `backups/`, and `config/` subdirect
 | `GALLEY_BACKUP_DIR` | `$GALLEY_DATA/backups` | Directory for timestamped backups |
 | `GALLEY_MAX_BACKUPS` | `20` | Maximum backups per document (0 = unlimited) |
 | `GALLEY_CONFIG_DIR` | `$GALLEY_DATA/config` | Directory containing optional `config.json` |
+| `TZ` | `UTC` | Timezone for displayed timestamps (e.g., `America/New_York`) — [tz database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) |
 
 ## Security
 

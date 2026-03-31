@@ -4,7 +4,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 FROM node:22-alpine
-RUN apk add --no-cache su-exec
+RUN apk add --no-cache su-exec tzdata
 RUN addgroup -S galley && adduser -S galley -G galley
 WORKDIR /app
 COPY --from=build --chown=galley:galley /app/node_modules ./node_modules
