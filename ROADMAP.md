@@ -131,6 +131,8 @@ Username/password or shared passphrase for access control. Currently handled at 
 
 Track which user made which edits, with a visual timeline or diff viewer. Requires authentication (to identify users) and either a richer backup format or a separate change log. Significant complexity increase over the current timestamped-backup approach.
 
-### Static Asset Serving
+### Static Asset Serving ✓
 
-Serve non-HTML files (images, CSS, fonts) from the docs directory alongside documents. Currently Galley only serves `.html` files — any `<img>` in a document must reference an external URL or use an inline data URI. Adding static asset serving would let authors place images in the docs directory and reference them with relative paths, keeping documents and their assets co-located and self-hosted. Scope is small (a static file middleware on the docs directory) but introduces considerations around allowed file types, path traversal on new extensions, and cache headers.
+*Completed 2026-03-31*
+
+Serves non-HTML files (images, CSS, fonts, PDF) from the docs directory alongside documents. HTML documents can reference co-located assets with relative paths. An extension whitelist restricts served file types to safe formats, configurable via `config.json`. Static assets are served with `Cache-Control: no-cache` for revalidation with ETag/Last-Modified support. Static files must be placed in the docs directory manually — the web upload interface remains restricted to `.html` files only.
