@@ -38,7 +38,6 @@ Galley 0.4 adds static asset serving, a configuration file system, and a securit
 **Other**
 
 - Favicon for the Galley web interface
-- Security audit documentation (`dev/2026-03-31_security-audit.md`)
 
 **What's not included (yet):**
 
