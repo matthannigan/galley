@@ -78,6 +78,8 @@ Galley includes the following built-in protections:
 
 - [User Guide](docs/USER_GUIDE.md) — editing, uploading, downloading, printing, troubleshooting
 - [Developer Guide](docs/DEVELOPER_GUIDE.md) — architecture, dirty tracking, internal conventions
+- [Changelog](CHANGELOG.md) — release history
+- [Roadmap](ROADMAP.md) — what's been built and what's next
 
 ## License
 
