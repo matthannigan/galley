@@ -4,6 +4,50 @@ All notable changes to Galley are documented here.
 
 ---
 
+## 0.4
+
+Galley 0.4 adds static asset serving, a configuration file system, and a security audit with fixes — making it practical to use documents with locally referenced images and giving deployers more control over the application.
+
+**Static asset serving**
+
+- HTML documents can reference co-located images, fonts, CSS, and PDFs with relative paths — Galley serves them automatically from the docs directory
+- Extension whitelist restricts served file types to safe formats: images (`.svg`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.ico`, `.avif`), fonts (`.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`), stylesheets (`.css`), and documents (`.pdf`)
+- Static assets are served with `Cache-Control: no-cache` — browsers revalidate on each request but get fast 304 responses for unchanged files
+- Static files must be placed in the docs directory manually (e.g., SMB file copy, `scp`); the web upload interface remains intentionally restricted to `.html` files only
+
+**Configuration file**
+
+- New optional `config.json` loaded from the config directory (`GALLEY_CONFIG_DIR` env var, defaults to `./data/config/`)
+- `allowedStaticExtensions` field lets deployers customize the static asset whitelist
+- Fails silently when no config file exists — zero configuration required by default
+
+**Security audit and fixes**
+
+- **Fixed stored XSS:** the link toolbar (Ctrl+K) accepted arbitrary URLs including `javascript:`, while the paste sanitizer correctly rejected them — now both paths validate against the same `http:`/`https:`/`mailto:` allowlist
+- **Security headers** on all responses: `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`
+- **Preview CSP:** `Content-Security-Policy: script-src 'none'` on the `/preview` route blocks script execution in document previews as defense-in-depth
+- **Error message hardening:** 500 responses return generic messages instead of raw `err.message`, preventing filesystem path leakage
+- **Backup retention:** configurable via `GALLEY_MAX_BACKUPS` (default 20), with automatic pruning of oldest backups per document
+- **Content-Disposition hardening:** quote-escaped filenames in download headers
+
+**Docker improvements**
+
+- PUID/PGID support following the LinuxServer convention — the entrypoint remaps the container user to match host UID/GID for bind-mounted volumes
+- Fixed entrypoint failure when the requested UID/GID already exists in the base image
+
+**Other**
+
+- Favicon for the Galley web interface
+- Security audit documentation (`dev/2026-03-31_security-audit.md`)
+
+**What's not included (yet):**
+
+- No authentication (use network-level access control)
+- No real-time collaboration (polling-based conflict detection covers light concurrent use)
+- No version history UI (timestamped backups remain on disk)
+
+---
+
 ## 0.3
 
 Galley 0.3 focuses on onboarding and discoverability — making the editor approachable for first-time users and easier to navigate for returning ones, without adding complexity to the editing experience itself.
@@ -44,7 +88,7 @@ Galley 0.3 focuses on onboarding and discoverability — making the editor appro
 - No authentication (use network-level access control)
 - No real-time collaboration (polling-based conflict detection covers light concurrent use)
 - No version history UI (timestamped backups remain on disk)
-- No static asset serving for images referenced by relative paths (use external URLs or data URIs)
+- No static asset serving for images referenced by relative paths (use external URLs or data URIs) — *added in 0.4*
 
 ---
 
