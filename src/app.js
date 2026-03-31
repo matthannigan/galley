@@ -7,6 +7,13 @@ import { readFile, readdir, stat, access, writeFile, rename, mkdir, copyFile, un
 import { injectEditing } from './injector.js';
 import { renderIndexPage, extractTitle } from './index-page.js';
 
+const DEFAULT_STATIC_EXTENSIONS = [
+  '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.avif',
+  '.woff', '.woff2', '.ttf', '.otf', '.eot',
+  '.css',
+  '.pdf',
+];
+
 export default function createApp(docsDir, options = {}) {
   const app = express();
   app.use((req, res, next) => {
@@ -21,6 +28,10 @@ export default function createApp(docsDir, options = {}) {
     ? path.resolve(options.backupDir)
     : path.join(resolvedDocsDir, '..', 'backups');
   const maxBackups = options.maxBackups ?? 20;
+  const allowedStaticExtensions = new Set(
+    (options.allowedStaticExtensions || DEFAULT_STATIC_EXTENSIONS)
+      .map(ext => ext.startsWith('.') ? ext : '.' + ext)
+  );
 
   function validateFilename(filename) {
     if (!filename.endsWith('.html')) {
@@ -118,8 +129,9 @@ export default function createApp(docsDir, options = {}) {
     }
   });
 
-  app.get('/edit/:filename', async (req, res) => {
+  app.get('/edit/:filename', async (req, res, next) => {
     const { filename } = req.params;
+    if (!filename.endsWith('.html')) return next();
     const result = validateFilename(filename);
     if (result.error) return res.status(result.status).send(result.error);
 
@@ -156,8 +168,9 @@ export default function createApp(docsDir, options = {}) {
     res.type('html').send(html);
   });
 
-  app.get('/preview/:filename', async (req, res) => {
+  app.get('/preview/:filename', async (req, res, next) => {
     const { filename } = req.params;
+    if (!filename.endsWith('.html')) return next();
     const result = validateFilename(filename);
     if (result.error) return res.status(result.status).send(result.error);
 
@@ -228,8 +241,21 @@ export default function createApp(docsDir, options = {}) {
 
   // Serve static assets (images, fonts, etc.) from the docs directory
   // so that relative references in HTML documents resolve correctly.
-  // Mounted after the /edit/:filename route so .html files are handled above.
-  app.use('/edit', express.static(resolvedDocsDir));
+  // Only whitelisted extensions are served; all others are rejected.
+  function staticExtensionFilter(req, res, next) {
+    const ext = path.extname(req.path).toLowerCase();
+    if (!ext || !allowedStaticExtensions.has(ext)) {
+      return res.status(404).send('Not found');
+    }
+    next();
+  }
+  const staticOptions = {
+    setHeaders(res) {
+      res.set('Cache-Control', 'no-cache');
+    },
+  };
+  app.use('/edit', staticExtensionFilter, express.static(resolvedDocsDir, staticOptions));
+  app.use('/preview', staticExtensionFilter, express.static(resolvedDocsDir, staticOptions));
 
   return app;
 }

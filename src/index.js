@@ -1,6 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { readdir, copyFile, mkdir } from 'fs/promises';
+import { readdir, copyFile, mkdir, readFile } from 'fs/promises';
 import createApp from './app.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,6 +12,16 @@ const backupDir = process.env.GALLEY_BACKUP_DIR
 const maxBackups = process.env.GALLEY_MAX_BACKUPS !== undefined
   ? parseInt(process.env.GALLEY_MAX_BACKUPS, 10)
   : undefined;
+const configDir = path.resolve(process.env.GALLEY_CONFIG_DIR || './data/config');
+
+// Load config.json if it exists
+let fileConfig = {};
+try {
+  const raw = await readFile(path.join(configDir, 'config.json'), 'utf-8');
+  fileConfig = JSON.parse(raw);
+} catch {
+  // No config file or invalid JSON — use defaults
+}
 
 // Ensure docs directory exists and seed with sample if empty
 await mkdir(docsDir, { recursive: true });
@@ -26,7 +36,11 @@ if (existing.length === 0) {
   }
 }
 
-const app = createApp(docsDir, { backupDir, maxBackups });
+const app = createApp(docsDir, {
+  backupDir,
+  maxBackups,
+  allowedStaticExtensions: fileConfig.allowedStaticExtensions,
+});
 
 app.listen(port, () => {
   console.log(`Galley listening on http://localhost:${port}`);

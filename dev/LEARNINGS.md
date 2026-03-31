@@ -2,6 +2,17 @@
 
 Reverse-chronological list of technical findings and gotchas from implementation.
 
+## 2026-03-31 — Static Asset Serving
+
+### Express route params match before static middleware
+The `/edit/:filename` route matches requests like `/edit/image.svg` before `express.static` middleware mounted at the same path. If the route handler returns an error (e.g., 400 for non-HTML extensions), the static middleware never runs. Fix: add an early `if (!filename.endsWith('.html')) return next()` check in the route handler to skip non-HTML requests and let them fall through to the static middleware.
+
+### Static file extension whitelist prevents serving unintended content
+An unrestricted `express.static` on the docs directory would serve any file placed there — JS files (XSS vector from same origin), `.env` files, archives, etc. A middleware that checks `path.extname()` against an allowlist before `express.static` runs is a simple gate. The whitelist (images, fonts, CSS, PDF) covers realistic embed use cases while rejecting anything unexpected.
+
+### Config file loading should fail silently
+`config.json` is optional — most users won't create one. Using try/catch around `readFile` + `JSON.parse` with an empty object fallback means zero configuration is needed by default. The `GALLEY_CONFIG_DIR` env var and `/data/config` Docker directory were already in place from the entrypoint script, so adding config file support required no infrastructure changes.
+
 ## 2026-03-31 — Security Audit
 
 ### Paste sanitizer and link toolbar had divergent URL validation

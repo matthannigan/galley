@@ -199,6 +199,54 @@ The `GET /` handler in `src/app.js` reads each `.html` file to extract its title
 
 **Multi-file upload:** The upload card's file input has the `multiple` attribute. The client-side script iterates over selected files, uploads each sequentially via `POST /upload`, then reloads the page. The server-side `/upload` endpoint is unchanged (handles one file per request).
 
+## Static Asset Serving
+
+Galley serves non-HTML files (images, fonts, CSS, PDF) from the docs directory so that HTML documents can reference co-located assets with relative paths.
+
+### Routing
+
+The `/edit/:filename` and `/preview/:filename` route handlers check whether the requested filename ends in `.html`. If not, they call `next()` to fall through to `express.static` middleware mounted at the same path prefixes:
+
+```
+GET /edit/logo.svg   → route handler skips (not .html) → staticExtensionFilter → express.static → serves file
+GET /edit/doc.html   → route handler matches (.html)   → injects editor, serves response
+```
+
+Both `/edit` and `/preview` have their own `express.static` instance pointing at the docs directory. This means a document at `/edit/report.html` containing `<img src="chart.png">` resolves to `/edit/chart.png`, which the static middleware serves from the docs directory.
+
+### Extension Whitelist
+
+A `staticExtensionFilter` middleware runs before `express.static` and checks `path.extname()` against an `allowedStaticExtensions` Set. Requests for non-whitelisted extensions receive a 404 without reaching the filesystem. The default whitelist:
+
+- **Images:** `.svg`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.ico`, `.avif`
+- **Fonts:** `.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`
+- **Stylesheets:** `.css`
+- **Documents:** `.pdf`
+
+The whitelist is configurable via the `allowedStaticExtensions` option to `createApp()`, which `index.js` populates from `config.json` if present. Extensions are normalized to include the leading dot.
+
+### Cache Headers
+
+Static assets are served with `Cache-Control: no-cache`, which requires the browser to revalidate on every request. `express.static` sends `ETag` and `Last-Modified` headers by default, so unchanged files get a 304 response. This is appropriate because static assets in the docs directory are user-managed files that could be replaced at any time.
+
+### Security Considerations
+
+- `express.static` handles path traversal protection internally
+- The extension whitelist prevents serving of `.js` files (XSS vector from same origin), `.env` files, archives, or other unintended content
+- Non-HTML files bypass `validateFilename()` entirely — they go straight from the route handler's `next()` to the extension filter and static middleware
+
+## Configuration File
+
+`src/index.js` loads an optional `config.json` from the config directory (`GALLEY_CONFIG_DIR` env var, defaults to `./data/config/`). The file is read with `readFile` + `JSON.parse` inside a try/catch — if the file doesn't exist or contains invalid JSON, an empty object is used and all options fall back to defaults.
+
+Config values are passed to `createApp()` via the options object. Currently supported fields:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `allowedStaticExtensions` | `string[]` | See above | File extensions served as static assets |
+
+To add new config options: read the field from `fileConfig` in `index.js`, pass it through the `createApp()` options, and consume it in `app.js`.
+
 ## Help Panel
 
 A `?` button (`#galley-help-btn`) is fixed at `bottom: 1.5rem; left: 1.5rem` — mirroring the save button's position on the opposite side. Clicking it toggles a panel (`#galley-help-panel`) with keyboard shortcuts, editing rules, block controls, and save behavior.
@@ -231,7 +279,9 @@ Galley has no built-in authentication. Access control is the deployer's responsi
 
 ### Server-Side Protections
 
-**Path traversal prevention** (`src/app.js`, `validateFilename()`): All `:filename` route parameters are validated — must end in `.html`, must not contain `..`, `/`, or `\`, and the resolved path must stay within the configured docs directory. This is defense-in-depth: the filename check catches obvious attacks, and the resolved-path check catches encoding tricks.
+**Path traversal prevention** (`src/app.js`, `validateFilename()`): All `:filename` route parameters for HTML files are validated — must end in `.html`, must not contain `..`, `/`, or `\`, and the resolved path must stay within the configured docs directory. This is defense-in-depth: the filename check catches obvious attacks, and the resolved-path check catches encoding tricks. Non-HTML static assets bypass `validateFilename()` and are handled by `express.static`, which has its own path traversal protection.
+
+**Static asset extension whitelist** (`src/app.js`, `staticExtensionFilter()`): Non-HTML files served from the docs directory are restricted to a configurable whitelist of safe file types (images, fonts, CSS, PDF). This prevents serving of `.js` files (which could be loaded as scripts from the same origin), `.env` files, or other sensitive content that might be placed in the docs directory.
 
 **Security headers** (`src/app.js`, middleware): All responses include `X-Content-Type-Options: nosniff` (prevents MIME-sniffing), `X-Frame-Options: SAMEORIGIN` (allows iframe embedding only from the same origin — needed for landing page previews), and `Referrer-Policy: no-referrer` (prevents document filenames from leaking via the Referer header to external links).
 
@@ -258,5 +308,5 @@ Galley has no built-in authentication. Access control is the deployer's responsi
 ### What Is NOT Protected
 
 - **Stored HTML content**: Documents are HTML files that can contain arbitrary markup, including `<script>` tags. Galley does not sanitize document content on save — it preserves whatever the document contains. The preview CSP mitigates script execution in that route, but the edit route (which injects the editor) serves documents with their full content.
-- **File access within the docs directory**: Any `.html` file in the docs directory is accessible to any user who can reach the server. There is no per-file or per-user access control.
+- **File access within the docs directory**: Any `.html` file and any whitelisted static asset in the docs directory is accessible to any user who can reach the server. There is no per-file or per-user access control.
 - **Rate limiting**: There is no request rate limiting. This is acceptable behind a network-layer gateway (Cloudflare, nginx) that can enforce rate limits, but the application itself will accept unlimited requests.

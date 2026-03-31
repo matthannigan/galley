@@ -13,7 +13,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Place `.html` files in `data/docs/`. Open the browser to see the landing page — a card grid with thumbnail previews of your documents, sorted by most recently modified. Click a card to edit, and press Save or Ctrl+S to write changes back to disk. Select text to reveal a floating toolbar for bold, italic, and link formatting. Mark containers with `data-galley-block` to enable drag-and-drop reordering, duplication, and removal. Upload one or more files directly from the landing page. Click the `?` button in the editor for a quick-reference help panel with keyboard shortcuts and feature overview.
+Place `.html` files in `data/docs/`. Open the browser to see the landing page — a card grid with thumbnail previews of your documents, sorted by most recently modified. Click a card to edit, and press Save or Ctrl+S to write changes back to disk. Select text to reveal a floating toolbar for bold, italic, and link formatting. Mark containers with `data-galley-block` to enable drag-and-drop reordering, duplication, and removal. Upload one or more files directly from the landing page. Click the `?` button in the editor for a quick-reference help panel with keyboard shortcuts and feature overview. Static assets (images, fonts, CSS) placed alongside your HTML files are served automatically.
 
 A "Getting Started with Galley" document is automatically seeded on first run. It's an interactive guide — with screenshots, keyboard shortcuts, and "Try it" prompts — that teaches you features by letting you use them.
 
@@ -47,6 +47,7 @@ The container automatically creates `docs/`, `backups/`, and `config/` subdirect
 | `GALLEY_DOCS_DIR` | `$GALLEY_DATA/docs` | Directory containing HTML documents |
 | `GALLEY_BACKUP_DIR` | `$GALLEY_DATA/backups` | Directory for timestamped backups |
 | `GALLEY_MAX_BACKUPS` | `20` | Maximum backups per document (0 = unlimited) |
+| `GALLEY_CONFIG_DIR` | `$GALLEY_DATA/config` | Directory containing optional `config.json` |
 
 ## Security
 
@@ -62,7 +63,8 @@ Without network-layer access control, anyone who can reach the server can read, 
 
 Galley includes the following built-in protections:
 
-- **Path traversal prevention** — filenames are validated against directory escape, path separators, and non-`.html` extensions
+- **Path traversal prevention** — filenames are validated against directory escape, path separators, and non-`.html` extensions; static assets use `express.static`'s built-in traversal protection
+- **Static asset whitelist** — only safe file types (images, fonts, CSS, PDF) are served from the docs directory; configurable via `config.json`
 - **Security headers** — `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer` on all responses
 - **Preview CSP** — the `/preview` route sets `Content-Security-Policy: script-src 'none'` to block script execution in document previews
 - **Paste sanitization** — pasted HTML is whitelist-filtered to bold, italic, and links with `http:`/`https:`/`mailto:` URLs only
@@ -74,8 +76,8 @@ Galley includes the following built-in protections:
 
 ## Documentation
 
-- [User Guide](docs/USER-GUIDE.md) — editing, uploading, downloading, printing, troubleshooting
-- [Developer Guide](docs/DEVELOPER-GUIDE.md) — architecture, dirty tracking, internal conventions
+- [User Guide](docs/USER_GUIDE.md) — editing, uploading, downloading, printing, troubleshooting
+- [Developer Guide](docs/DEVELOPER_GUIDE.md) — architecture, dirty tracking, internal conventions
 
 ## License
 

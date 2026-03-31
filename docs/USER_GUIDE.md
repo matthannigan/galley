@@ -124,6 +124,18 @@ To enable block operations on a container element, add the `data-galley-block` a
 
 Blocks are typically `<div>` or `<section>` elements that wrap a logical content unit. Drag-and-drop reordering is constrained to siblings within the same parent — blocks cannot be dragged to a different section of the document.
 
+## Static Assets (Images, Fonts, CSS)
+
+HTML documents can reference images, fonts, stylesheets, and other static files using relative paths. If the referenced files exist in the docs directory alongside the HTML documents, Galley will serve them automatically.
+
+For example, if your document contains `<img src="logo.svg">`, place `logo.svg` in the same directory as your HTML files and it will render in both the editor and preview.
+
+**Allowed file types:** Images (`.svg`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.ico`, `.avif`), fonts (`.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`), stylesheets (`.css`), and documents (`.pdf`). All other file types are blocked for security.
+
+**Adding static files:** Static assets must be placed in the docs directory manually — for example, via SMB file copy, `scp`, or direct filesystem access. The upload feature on the landing page is intentionally restricted to `.html` files only. Galley does not provide a web interface for uploading images or other non-HTML files.
+
+**Customizing allowed types:** To change the list of allowed extensions, create a `config.json` file in the config directory (see [Configuration](#configuration) below).
+
 ## Uploading
 
 The landing page has an upload card that accepts one or more `.html` files. When you upload:
@@ -157,6 +169,24 @@ Every save and overwriting upload creates a timestamped backup in the `backups/`
 
 By default, Galley keeps the 20 most recent backups per document and prunes older ones automatically. Set `GALLEY_MAX_BACKUPS=0` to keep all backups (no pruning), or set a different number to adjust the limit.
 
+## Configuration
+
+Galley can be configured through environment variables (see [Getting Started](#getting-started)) and an optional `config.json` file.
+
+The config file is loaded from the config directory — `./data/config/` by default, or the path set by the `GALLEY_CONFIG_DIR` environment variable. In Docker, this is `/data/config/`, which is created automatically inside the mounted data volume.
+
+If the file does not exist, Galley uses built-in defaults. All fields are optional.
+
+```json
+{
+  "allowedStaticExtensions": [".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".avif", ".woff", ".woff2", ".ttf", ".otf", ".eot", ".css", ".pdf"]
+}
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `allowedStaticExtensions` | See above | File extensions that Galley will serve as static assets from the docs directory. Extensions must include the leading dot. |
+
 ## Security and Access Control
 
 Galley has **no built-in authentication or login system**. If you can reach the server, you can read and edit documents. This is by design — access control is handled at the network layer, outside of Galley.
@@ -175,7 +205,7 @@ Even within an authenticated session, Galley enforces several safety measures:
 
 - **Paste sanitization** — pasted HTML is stripped to plain text by default. Rich paste (Ctrl+Shift+V) allows only bold, italic, and links with `http:`/`https:`/`mailto:` URLs. `javascript:` links are rejected.
 - **Link URL validation** — the link toolbar (Ctrl+K) only accepts `http:`, `https:`, and `mailto:` URLs.
-- **File restrictions** — only `.html` files can be served, saved, or uploaded. Path traversal attempts are blocked.
+- **File restrictions** — only `.html` files can be edited, saved, or uploaded. Static assets are restricted to a whitelist of safe file types (images, fonts, CSS, PDF). Path traversal attempts are blocked.
 - **Save conflicts** — if two people edit the same document, the second saver is warned and given the choice to reload or force-save.
 - **Automatic backups** — every save creates a timestamped backup before overwriting, so content is never permanently lost.
 

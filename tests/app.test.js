@@ -58,9 +58,15 @@ describe('GET /edit/:filename', () => {
     expect(res.status).toBe(404);
   });
 
-  test('returns 400 for non-HTML extension', async () => {
+  test('falls through to static middleware for non-HTML extension', async () => {
     const res = await request(app).get('/edit/file.js');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
+  });
+
+  test('serves static assets from docs directory', async () => {
+    const res = await request(app).get('/edit/test-image.svg');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/image\/svg\+xml/);
   });
 
   test('rejects path traversal (URL-normalized away from route)', async () => {
@@ -175,9 +181,15 @@ describe('GET /preview/:filename', () => {
     expect(res.status).toBe(404);
   });
 
-  test('returns 400 for non-HTML extension', async () => {
+  test('falls through to static middleware for non-HTML extension', async () => {
     const res = await request(app).get('/preview/file.js');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
+  });
+
+  test('serves static assets from docs directory', async () => {
+    const res = await request(app).get('/preview/test-image.svg');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/image\/svg\+xml/);
   });
 
   test('rejects path traversal', async () => {
