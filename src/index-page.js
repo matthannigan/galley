@@ -74,6 +74,7 @@ export function renderIndexPage(files) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Galley</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Outfit:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
@@ -131,6 +132,15 @@ export function renderIndexPage(files) {
     font-weight: 600;
     letter-spacing: -0.02em;
     margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .panel-brand-icon {
+    width: 0.85em;
+    height: 0.85em;
+    flex-shrink: 0;
   }
 
   .panel-section { margin-bottom: 26px; }
@@ -447,7 +457,7 @@ export function renderIndexPage(files) {
 <div class="split">
 
   <aside class="panel">
-    <div class="panel-brand">Galley</div>
+    <div class="panel-brand"><svg class="panel-brand-icon" viewBox="0 0 32 32" aria-hidden="true"><rect fill="#3d3d3a" x="1" y="2" width="30" height="4" rx="1.5" opacity="0.85"/><rect fill="none" stroke="#3d3d3a" stroke-width="1.2" x="2" y="5" width="28" height="25" rx="2"/><rect fill="#3d3d3a" x="6" y="11" width="20" height="2.2" rx="0.5" opacity="0.7"/><rect fill="#3d3d3a" x="6" y="15.5" width="20" height="2.2" rx="0.5" opacity="0.7"/><rect fill="#3d3d3a" x="6" y="20" width="20" height="2.2" rx="0.5" opacity="0.7"/><rect fill="#3d3d3a" x="6" y="24.5" width="14" height="2.2" rx="0.5" opacity="0.6"/></svg> Galley</div>
 
     <div class="panel-section">
       <div class="panel-heading">What is this?</div>
