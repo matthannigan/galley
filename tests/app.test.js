@@ -752,3 +752,152 @@ describe('backup retention', () => {
     expect(testBackups.length).toBe(5);
   });
 });
+
+describe('Delete feature (disabled by default)', () => {
+  test('GET /delete returns 404 when feature disabled', async () => {
+    const res = await request(app).get('/delete');
+    expect(res.status).toBe(404);
+  });
+
+  test('GET /delete/:filename returns 404 when feature disabled', async () => {
+    const res = await request(app).get('/delete/test.html');
+    expect(res.status).toBe(404);
+  });
+
+  test('POST /delete/:filename returns 404 when feature disabled', async () => {
+    const res = await request(app)
+      .post('/delete/test.html')
+      .send({ confirm: 'DELETE' });
+    expect(res.status).toBe(404);
+  });
+
+  test('explicit deleteEnabled: false also returns 404', async () => {
+    const offApp = createApp(fixturesDir, { deleteEnabled: false });
+    const res = await request(offApp).get('/delete');
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('Delete feature (enabled)', () => {
+  async function makeDeleteApp() {
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-delete-'));
+    const tmpDocsDir = path.join(tmpDir, 'docs');
+    const tmpBackupDir = path.join(tmpDir, 'backups');
+    await mkdir(tmpDocsDir, { recursive: true });
+    await copyFile(path.join(fixturesDir, 'test.html'), path.join(tmpDocsDir, 'test.html'));
+    const deleteApp = createApp(tmpDocsDir, { backupDir: tmpBackupDir, deleteEnabled: true });
+    return { deleteApp, tmpDocsDir, tmpBackupDir };
+  }
+
+  test('GET /delete returns the delete-mode card grid', async () => {
+    const { deleteApp } = await makeDeleteApp();
+    const res = await request(deleteApp).get('/delete');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.text).toContain('Delete documents');
+    expect(res.text).toContain('class="card-delete"');
+    expect(res.text).toContain('href="/delete/test.html"');
+    expect(res.text).toContain('warning-banner');
+    expect(res.text).not.toContain('id="galley-upload"');
+  });
+
+  test('GET /delete renders empty state for empty docs dir', async () => {
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'galley-delete-empty-'));
+    const emptyApp = createApp(tmpDir, { deleteEnabled: true });
+    const res = await request(emptyApp).get('/delete');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('No HTML documents to delete');
+  });
+
+  test('GET /delete/:filename renders confirmation page', async () => {
+    const { deleteApp } = await makeDeleteApp();
+    const res = await request(deleteApp).get('/delete/test.html');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.text).toContain('Confirm delete');
+    expect(res.text).toContain('test.html');
+    expect(res.text).toContain('id="confirm-input"');
+    expect(res.text).toContain('Type <strong>DELETE</strong>');
+  });
+
+  test('GET /delete/:filename returns 404 for nonexistent file', async () => {
+    const { deleteApp } = await makeDeleteApp();
+    const res = await request(deleteApp).get('/delete/missing.html');
+    expect(res.status).toBe(404);
+  });
+
+  test('GET /delete/:filename rejects path traversal', async () => {
+    const { deleteApp } = await makeDeleteApp();
+    const res = await request(deleteApp).get('/delete/%2e%2e%2fpasswd.html');
+    expect(res.status).toBe(400);
+  });
+
+  test('POST /delete/:filename with valid confirm removes file and creates backup', async () => {
+    const { deleteApp, tmpDocsDir, tmpBackupDir } = await makeDeleteApp();
+
+    // Sanity: file present before
+    const before = await readdir(tmpDocsDir);
+    expect(before).toContain('test.html');
+
+    const res = await request(deleteApp)
+      .post('/delete/test.html')
+      .send({ confirm: 'DELETE' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+
+    // File gone
+    const after = await readdir(tmpDocsDir);
+    expect(after).not.toContain('test.html');
+
+    // Backup created
+    const backups = await readdir(tmpBackupDir);
+    const testBackups = backups.filter(f => f.startsWith('test.') && f.endsWith('.html'));
+    expect(testBackups.length).toBe(1);
+  });
+
+  test('POST /delete/:filename without confirm returns 400 and keeps file', async () => {
+    const { deleteApp, tmpDocsDir } = await makeDeleteApp();
+    const res = await request(deleteApp)
+      .post('/delete/test.html')
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/confirm/i);
+    const files = await readdir(tmpDocsDir);
+    expect(files).toContain('test.html');
+  });
+
+  test('POST /delete/:filename with wrong confirm returns 400 and keeps file', async () => {
+    const { deleteApp, tmpDocsDir } = await makeDeleteApp();
+    const res = await request(deleteApp)
+      .post('/delete/test.html')
+      .send({ confirm: 'delete' });
+    expect(res.status).toBe(400);
+    const files = await readdir(tmpDocsDir);
+    expect(files).toContain('test.html');
+  });
+
+  test('POST /delete/:filename returns 404 for nonexistent file', async () => {
+    const { deleteApp } = await makeDeleteApp();
+    const res = await request(deleteApp)
+      .post('/delete/missing.html')
+      .send({ confirm: 'DELETE' });
+    expect(res.status).toBe(404);
+  });
+
+  test('POST /delete/:filename rejects encoded path traversal', async () => {
+    const { deleteApp } = await makeDeleteApp();
+    const res = await request(deleteApp)
+      .post('/delete/%2e%2e%2fpasswd.html')
+      .send({ confirm: 'DELETE' });
+    expect(res.status).toBe(400);
+  });
+
+  test('GET / (browse mode) is unchanged when delete enabled', async () => {
+    const { deleteApp } = await makeDeleteApp();
+    const res = await request(deleteApp).get('/');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('class="card-download"');
+    expect(res.text).not.toContain('class="card-delete"');
+    expect(res.text).toContain('id="galley-upload"');
+  });
+});

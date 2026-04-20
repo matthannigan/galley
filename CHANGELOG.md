@@ -4,6 +4,18 @@ All notable changes to Galley are documented here.
 
 ---
 
+## Unreleased
+
+**Remote delete (opt-in)**
+
+- New hidden `/delete` page mirrors the index card grid but with red DELETE actions in the lower-right of each card, enabling remote file removal without shell access
+- Clicking DELETE opens a styled confirmation page where the user must type `DELETE` to authorize the removal
+- Deleted files are first copied to the backups directory (same naming and pruning policy as save backups), so removal is recoverable manually
+- Disabled by default — enable with `GALLEY_DELETE_ENABLED=true` env var or `"deleteEnabled": true` in `config.json`; when disabled, all `/delete` routes return 404
+- The browse page (`/`) is unchanged when the feature is enabled — `/delete` is intentionally hidden and not linked
+
+---
+
 ## 0.4
 
 Galley 0.4 adds static asset serving, a configuration file system, and a security audit with fixes — making it practical to use documents with locally referenced images and giving deployers more control over the application.

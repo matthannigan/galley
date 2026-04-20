@@ -10,6 +10,7 @@ Galley has reached a stable baseline for its core use case: a two-person workflo
 | **0.2** | Editing depth — file management, undo, save conflicts, auto-reload, formatting toolbar, block operations |
 | **0.3** | Onboarding — landing page redesign, editor help panel, interactive sample document as user guide |
 | **0.4** | Infrastructure — static asset serving, config file, security audit and hardening, PUID/PGID Docker support |
+| **Unreleased** | Remote delete (opt-in) — hidden `/delete` page with typed-DELETE confirmation, gated by `GALLEY_DELETE_ENABLED` |
 
 See [CHANGELOG.md](CHANGELOG.md) for release details.
 

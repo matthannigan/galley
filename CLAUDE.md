@@ -44,9 +44,9 @@ docker compose up
 - **Server:** Node.js (ESM) with Express, no database — filesystem only
 - **Client:** Vanilla JavaScript injected into served documents, no framework
 - **`src/app.js`** exports a `createApp(docsDir, options)` factory function — keeps config explicit and enables test isolation
-- **`src/index.js`** reads env vars (`PORT`, `GALLEY_DOCS_DIR`, `GALLEY_BACKUP_DIR`) and starts the server; docs default to `./data/docs`, backups to `./data/backups`
+- **`src/index.js`** reads env vars (`PORT`, `GALLEY_DOCS_DIR`, `GALLEY_BACKUP_DIR`, `GALLEY_DELETE_ENABLED`) and starts the server; docs default to `./data/docs`, backups to `./data/backups`
 - **`docker-entrypoint.sh`** runs as root to create `/data/{docs,backups,config}` with correct ownership, then drops to the `galley` user via `su-exec`
-- **`src/index-page.js`** exports `extractTitle(html, filename)` and `renderIndexPage(files)` — generates the landing page HTML with sidebar and card grid
+- **`src/index-page.js`** exports `extractTitle(html, filename)`, `renderIndexPage(files, { mode })`, and `renderConfirmPage({ filename, title })` — generates the landing page (browse or delete mode) and the delete-confirmation page
 - **`src/injector.js`** reads `galley-client.js` and `galley-styles.css`, assembles and caches the injection payload, inserts it into served HTML between `<!-- galley:start -->` / `<!-- galley:end -->` markers
 - **`src/galley-client.js`** is the client-side editing script (IIFE, vanilla JS) — element detection, contenteditable activation, paste interception, structure guard, save logic, and browser extension artifact cleanup
 - **`src/galley-styles.css`** provides hover/focus editing indicators and save UI styles, scoped under `@media not print`
@@ -61,6 +61,9 @@ docker compose up
 - `GET /health` — health check
 - `POST /save/:filename` — receives full document HTML, creates a timestamped backup, atomically writes the updated file
 - `POST /upload` — receives `{ filename, html }` JSON, creates or overwrites with backup
+- `GET /delete` — landing page card grid in delete mode (red DELETE actions). Returns 404 unless `GALLEY_DELETE_ENABLED=true` (or `deleteEnabled: true` in `config.json`)
+- `GET /delete/:filename` — server-rendered confirmation page with typed-DELETE input. Same gate as above
+- `POST /delete/:filename` — accepts `{ confirm: 'DELETE' }` JSON, backs the file up, then unlinks it. Same gate as above
 
 ### Key Constraints
 - **Save outputs must be clean:** No injected scripts, editing UI, or tool artifacts in saved files. Output must be structurally identical to input, differing only in text content. Browser extension artifacts (Grammarly, etc.) are stripped before save.

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { readFile, readdir, stat, access, writeFile, rename, mkdir, copyFile, unlink } from 'fs/promises';
 import { injectEditing } from './injector.js';
-import { renderIndexPage, extractTitle } from './index-page.js';
+import { renderIndexPage, extractTitle, renderConfirmPage } from './index-page.js';
 
 const DEFAULT_STATIC_EXTENSIONS = [
   '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.avif',
@@ -28,6 +28,7 @@ export default function createApp(docsDir, options = {}) {
     ? path.resolve(options.backupDir)
     : path.join(resolvedDocsDir, '..', 'backups');
   const maxBackups = options.maxBackups ?? 20;
+  const deleteEnabled = options.deleteEnabled === true;
   const allowedStaticExtensions = new Set(
     (options.allowedStaticExtensions || DEFAULT_STATIC_EXTENSIONS)
       .map(ext => ext.startsWith('.') ? ext : '.' + ext)
@@ -47,7 +48,7 @@ export default function createApp(docsDir, options = {}) {
     return { filePath };
   }
 
-  async function atomicWriteWithBackup(filePath, content, { requireExists = true } = {}) {
+  async function backupFile(filePath, { requireExists = true } = {}) {
     let exists = true;
     try {
       await access(filePath);
@@ -76,6 +77,12 @@ export default function createApp(docsDir, options = {}) {
       }
     }
 
+    return { exists };
+  }
+
+  async function atomicWriteWithBackup(filePath, content, { requireExists = true } = {}) {
+    await backupFile(filePath, { requireExists });
+
     const tempPath = filePath + '.tmp.' + Date.now();
     await writeFile(tempPath, content, 'utf-8');
     try {
@@ -84,6 +91,11 @@ export default function createApp(docsDir, options = {}) {
       try { await unlink(tempPath); } catch { /* best-effort cleanup */ }
       throw renameErr;
     }
+  }
+
+  async function backupAndDelete(filePath) {
+    await backupFile(filePath, { requireExists: true });
+    await unlink(filePath);
   }
 
   app.get('/health', (req, res) => {
@@ -236,6 +248,65 @@ export default function createApp(docsDir, options = {}) {
     } catch (err) {
       console.error('Upload error:', err);
       res.status(500).json({ error: 'Upload failed' });
+    }
+  });
+
+  app.get('/delete', async (req, res) => {
+    if (!deleteEnabled) return res.status(404).send('Not found');
+
+    const entries = await readdir(resolvedDocsDir);
+    const htmlFiles = [];
+
+    for (const entry of entries) {
+      if (!entry.endsWith('.html') || entry.startsWith('.')) continue;
+      const filePath = path.join(resolvedDocsDir, entry);
+      const fileStat = await stat(filePath);
+      if (!fileStat.isFile()) continue;
+      const content = await readFile(filePath, 'utf-8');
+      const title = extractTitle(content, entry);
+      htmlFiles.push({ name: entry, modified: fileStat.mtime, title });
+    }
+
+    htmlFiles.sort((a, b) => b.modified - a.modified);
+    res.type('html').send(renderIndexPage(htmlFiles, { mode: 'delete' }));
+  });
+
+  app.get('/delete/:filename', async (req, res) => {
+    if (!deleteEnabled) return res.status(404).send('Not found');
+
+    const { filename } = req.params;
+    const result = validateFilename(filename);
+    if (result.error) return res.status(result.status).send(result.error);
+
+    let html;
+    try {
+      html = await readFile(result.filePath, 'utf-8');
+    } catch {
+      return res.status(404).send('File not found');
+    }
+
+    const title = extractTitle(html, filename);
+    res.type('html').send(renderConfirmPage({ filename, title }));
+  });
+
+  app.post('/delete/:filename', async (req, res) => {
+    if (!deleteEnabled) return res.status(404).send('Not found');
+
+    const { filename } = req.params;
+    const result = validateFilename(filename);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+
+    if (!req.body || req.body.confirm !== 'DELETE') {
+      return res.status(400).json({ error: 'Confirmation required: send { confirm: "DELETE" }' });
+    }
+
+    try {
+      await backupAndDelete(result.filePath);
+      res.json({ ok: true });
+    } catch (err) {
+      if (err.statusCode === 404) return res.status(404).json({ error: 'File not found' });
+      console.error('Delete error:', err);
+      res.status(500).json({ error: 'Delete failed' });
     }
   });
 

@@ -34,46 +34,113 @@ function formatDate(date) {
   return `${month} ${day}, ${hours}:${minutes} ${ampm}`;
 }
 
-function renderCard(file, index) {
+function renderCard(file, index, { mode = 'browse' } = {}) {
   const encodedName = encodeURIComponent(file.name);
   const delay = Math.min((index + 1) * 0.05, 0.5);
+  const isDelete = mode === 'delete';
+  const cardHref = isDelete ? `/delete/${encodedName}` : `/edit/${encodedName}`;
+  const action = isDelete
+    ? `<a class="card-delete" href="/delete/${encodedName}">Delete</a>`
+    : `<a class="card-download" href="/download/${encodedName}">Download</a>`;
   return `
       <li class="card" style="animation-delay: ${delay}s">
         <div class="card-thumb">
-          <a href="/edit/${encodedName}">
+          <a href="${cardHref}">
             <iframe src="/preview/${encodedName}" tabindex="-1" loading="lazy" sandbox scrolling="no"></iframe>
             <div class="card-thumb-overlay"></div>
           </a>
         </div>
         <div class="card-body">
-          <div class="card-title"><a href="/edit/${encodedName}">${escapeHtml(file.title)}</a></div>
+          <div class="card-title"><a href="${cardHref}">${escapeHtml(file.title)}</a></div>
           <div class="card-filename">${escapeHtml(file.name)}</div>
           <div class="card-meta-row">
             <span class="card-date">${formatDate(file.modified)}</span>
-            <a class="card-download" href="/download/${encodedName}">Download</a>
+            ${action}
           </div>
         </div>
       </li>`;
 }
 
-export function renderIndexPage(files) {
+export function renderIndexPage(files, { mode = 'browse' } = {}) {
+  const isDelete = mode === 'delete';
   const count = files.length;
   const countText = `${count} file${count !== 1 ? 's' : ''}`;
+  const pageTitle = isDelete ? 'Galley — Delete' : 'Galley';
+  const contentTitle = isDelete ? 'Delete documents' : 'Documents';
 
   const cards = count > 0
-    ? files.map((f, i) => renderCard(f, i)).join('')
+    ? files.map((f, i) => renderCard(f, i, { mode })).join('')
     : '';
 
   const emptyState = count === 0
-    ? '<li class="card-empty">No HTML documents found.</li>'
+    ? `<li class="card-empty">${isDelete ? 'No HTML documents to delete.' : 'No HTML documents found.'}</li>`
     : '';
+
+  const banner = isDelete
+    ? `<div class="warning-banner"><strong>Heads up:</strong> Deleting is permanent. A timestamped backup is saved in the backups directory and can be restored manually.</div>`
+    : '';
+
+  const uploadCard = isDelete
+    ? ''
+    : `      <li class="card-upload">
+        <input type="file" accept=".html" id="galley-upload" multiple>
+        <div class="upload-inner">
+          <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          <div class="upload-text">Upload HTML file</div>
+          <div class="upload-hint">.html files only</div>
+        </div>
+      </li>`;
+
+  const uploadScript = isDelete ? '' : `<script>
+  document.getElementById('galley-upload').addEventListener('change', function (e) {
+    var files = Array.from(e.target.files);
+    if (!files.length) return;
+    var invalid = files.filter(function (f) { return !f.name.endsWith('.html'); });
+    if (invalid.length) {
+      alert('Only .html files are accepted.');
+      e.target.value = '';
+      return;
+    }
+
+    var errors = [];
+
+    function uploadNext(i) {
+      if (i >= files.length) {
+        if (errors.length) alert('Upload failed for: ' + errors.join(', '));
+        window.location.reload();
+        return;
+      }
+      var file = files[i];
+      var reader = new FileReader();
+      reader.onload = function () {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function () {
+          if (xhr.status !== 200) errors.push(file.name);
+          uploadNext(i + 1);
+        };
+        xhr.onerror = function () {
+          errors.push(file.name);
+          uploadNext(i + 1);
+        };
+        xhr.send(JSON.stringify({ filename: file.name, html: reader.result }));
+      };
+      reader.readAsText(file);
+    }
+
+    uploadNext(0);
+  });
+</script>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Galley</title>
+<title>${pageTitle}</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Outfit:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -88,6 +155,9 @@ export function renderIndexPage(files) {
     --accent: #4a6741;
     --accent-light: #e8ede7;
     --accent-hover: #3a5233;
+    --danger: #b53e3e;
+    --danger-hover: #8a2e2e;
+    --danger-light: #fbeaea;
     --border: #e7e5e4;
     --border-hover: #d6d3d1;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
@@ -371,6 +441,32 @@ export function renderIndexPage(files) {
 
   .card-download:hover { color: var(--ink); }
 
+  .card-delete {
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--danger);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .card-delete:hover { color: var(--danger-hover); }
+
+  .warning-banner {
+    background: var(--danger-light);
+    border: 1px solid var(--danger);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  .warning-banner strong { color: var(--danger-hover); }
+
   .card-upload {
     background: transparent;
     border: 1.5px dashed var(--border);
@@ -494,67 +590,213 @@ export function renderIndexPage(files) {
 
   <main class="content">
     <div class="content-header">
-      <h2 class="content-title">Documents</h2>
+      <h2 class="content-title">${contentTitle}</h2>
       <span class="content-count">${countText}</span>
     </div>
-
+    ${banner}
     <ul class="card-grid">
 ${cards}${emptyState}
-      <li class="card-upload">
-        <input type="file" accept=".html" id="galley-upload" multiple>
-        <div class="upload-inner">
-          <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          <div class="upload-text">Upload HTML file</div>
-          <div class="upload-hint">.html files only</div>
-        </div>
-      </li>
+${uploadCard}
     </ul>
   </main>
 
 </div>
+${uploadScript}
+</body>
+</html>`;
+}
+
+export function renderConfirmPage({ filename, title }) {
+  const safeFilename = escapeHtml(filename);
+  const safeTitle = escapeHtml(title);
+  const jsonFilename = JSON.stringify(filename);
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galley — Confirm delete</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Outfit:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-secondary: #57534e;
+    --ink-tertiary: #a8a29e;
+    --surface: #fafaf9;
+    --surface-panel: #f3f2f0;
+    --surface-card: #ffffff;
+    --danger: #b53e3e;
+    --danger-hover: #8a2e2e;
+    --danger-light: #fbeaea;
+    --border: #e7e5e4;
+    --border-hover: #d6d3d1;
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --display: 'Fraunces', Georgia, serif;
+    --body: 'Outfit', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --radius: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--body);
+    color: var(--ink);
+    background: var(--surface);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding: 0 24px;
+  }
+  .confirm-card {
+    max-width: 520px;
+    margin: 64px auto;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 32px;
+  }
+  .confirm-title {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .confirm-doc-title {
+    font-family: var(--display);
+    font-size: 16px;
+    color: var(--ink-secondary);
+    margin-bottom: 4px;
+  }
+  .confirm-filename {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-tertiary);
+    margin-bottom: 18px;
+    word-break: break-all;
+  }
+  .confirm-body {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--ink-secondary);
+    margin-bottom: 20px;
+  }
+  .confirm-form label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-secondary);
+    margin-bottom: 6px;
+  }
+  .confirm-form input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 14px;
+    border: 1px solid var(--border-hover);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .confirm-form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-light);
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: flex-end;
+  }
+  .btn {
+    font-family: var(--body);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-cancel {
+    background: transparent;
+    border-color: var(--border-hover);
+    color: var(--ink-secondary);
+  }
+  .btn-cancel:hover { background: var(--surface-panel); color: var(--ink); }
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+  }
+  .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+  .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+  .confirm-error {
+    margin-top: 14px;
+    color: var(--danger-hover);
+    font-size: 12.5px;
+    min-height: 1em;
+  }
+</style>
+</head>
+<body>
+<div class="confirm-card">
+  <div class="confirm-title">Confirm delete</div>
+  <div class="confirm-doc-title">${safeTitle}</div>
+  <div class="confirm-filename">${safeFilename}</div>
+  <div class="confirm-body">
+    This will remove the file from the documents directory. A timestamped backup is saved automatically and can be restored manually from the backups directory.
+  </div>
+  <form class="confirm-form" id="confirm-form" autocomplete="off">
+    <label for="confirm-input">Type <strong>DELETE</strong> to confirm</label>
+    <input type="text" id="confirm-input" name="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" autofocus>
+    <div class="confirm-actions">
+      <a class="btn btn-cancel" href="/delete">Cancel</a>
+      <button type="submit" class="btn btn-danger" id="confirm-submit" disabled>Delete file</button>
+    </div>
+    <div class="confirm-error" id="confirm-error"></div>
+  </form>
+</div>
 <script>
-  document.getElementById('galley-upload').addEventListener('change', function (e) {
-    var files = Array.from(e.target.files);
-    if (!files.length) return;
-    var invalid = files.filter(function (f) { return !f.name.endsWith('.html'); });
-    if (invalid.length) {
-      alert('Only .html files are accepted.');
-      e.target.value = '';
-      return;
-    }
+  (function () {
+    var input = document.getElementById('confirm-input');
+    var submit = document.getElementById('confirm-submit');
+    var form = document.getElementById('confirm-form');
+    var error = document.getElementById('confirm-error');
+    var filename = ${jsonFilename};
 
-    var errors = [];
-    var completed = 0;
+    input.addEventListener('input', function () {
+      submit.disabled = input.value !== 'DELETE';
+    });
 
-    function uploadNext(i) {
-      if (i >= files.length) {
-        if (errors.length) alert('Upload failed for: ' + errors.join(', '));
-        window.location.reload();
-        return;
-      }
-      var file = files[i];
-      var reader = new FileReader();
-      reader.onload = function () {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/upload');
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.onload = function () {
-          if (xhr.status !== 200) errors.push(file.name);
-          uploadNext(i + 1);
-        };
-        xhr.onerror = function () {
-          errors.push(file.name);
-          uploadNext(i + 1);
-        };
-        xhr.send(JSON.stringify({ filename: file.name, html: reader.result }));
-      };
-      reader.readAsText(file);
-    }
-
-    uploadNext(0);
-  });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (input.value !== 'DELETE') return;
+      submit.disabled = true;
+      error.textContent = '';
+      fetch('/delete/' + encodeURIComponent(filename), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' })
+      }).then(function (res) {
+        if (res.ok) {
+          window.location.href = '/delete';
+          return;
+        }
+        return res.json().then(function (data) {
+          throw new Error((data && data.error) || ('Delete failed (' + res.status + ')'));
+        }, function () {
+          throw new Error('Delete failed (' + res.status + ')');
+        });
+      }).catch(function (err) {
+        error.textContent = err.message || 'Delete failed';
+        submit.disabled = false;
+      });
+    });
+  })();
 </script>
 </body>
 </html>`;

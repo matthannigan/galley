@@ -48,7 +48,18 @@ The container automatically creates `docs/`, `backups/`, and `config/` subdirect
 | `GALLEY_BACKUP_DIR` | `$GALLEY_DATA/backups` | Directory for timestamped backups |
 | `GALLEY_MAX_BACKUPS` | `20` | Maximum backups per document (0 = unlimited) |
 | `GALLEY_CONFIG_DIR` | `$GALLEY_DATA/config` | Directory containing optional `config.json` |
+| `GALLEY_DELETE_ENABLED` | `false` | Set to `true` to enable the `/delete` page and `POST /delete/:filename` endpoint |
 | `TZ` | `UTC` | Timezone for displayed timestamps (e.g., `America/New_York`) — [tz database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) |
+
+The delete feature can also be enabled via `config.json`:
+
+```json
+{
+  "deleteEnabled": true
+}
+```
+
+The env var takes precedence; either source enabling it is enough.
 
 ## Security
 
@@ -74,6 +85,7 @@ Galley includes the following built-in protections:
 - **Backup retention** — old backups are automatically pruned (configurable via `GALLEY_MAX_BACKUPS`)
 - **CSRF mitigation** — POST endpoints require `Content-Type: application/json`, which triggers CORS preflight on cross-origin requests
 - **Non-root Docker execution** — the container runs as a dedicated `galley` user
+- **Delete endpoint disabled by default** — file deletion via the web UI is opt-in (set `GALLEY_DELETE_ENABLED=true` or `deleteEnabled: true` in `config.json`); when enabled, deletes still create a timestamped backup that can be restored manually from the backups directory
 
 ## Documentation
 

@@ -13,6 +13,7 @@ const maxBackups = process.env.GALLEY_MAX_BACKUPS !== undefined
   ? parseInt(process.env.GALLEY_MAX_BACKUPS, 10)
   : undefined;
 const configDir = path.resolve(process.env.GALLEY_CONFIG_DIR || './data/config');
+const envDeleteEnabled = process.env.GALLEY_DELETE_ENABLED === 'true';
 
 // Load config.json if it exists
 let fileConfig = {};
@@ -22,6 +23,8 @@ try {
 } catch {
   // No config file or invalid JSON — use defaults
 }
+
+const deleteEnabled = envDeleteEnabled || fileConfig.deleteEnabled === true;
 
 // Ensure docs directory exists and seed with sample if empty
 await mkdir(docsDir, { recursive: true });
@@ -39,6 +42,7 @@ if (existing.length === 0) {
 const app = createApp(docsDir, {
   backupDir,
   maxBackups,
+  deleteEnabled,
   allowedStaticExtensions: fileConfig.allowedStaticExtensions,
 });
 
@@ -46,4 +50,5 @@ app.listen(port, () => {
   console.log(`Galley listening on http://localhost:${port}`);
   console.log(`Serving documents from ${docsDir}`);
   console.log(`Backups stored in ${backupDir || path.join(docsDir, '..', 'backups')}`);
+  if (deleteEnabled) console.log('Delete endpoint enabled at /delete');
 });
